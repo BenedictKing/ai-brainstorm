@@ -3,7 +3,7 @@ import { ClaudeProvider } from './ClaudeProvider.js';
 import { GeminiProvider } from './GeminiProvider.js';
 import { GrokProvider } from './GrokProvider.js';
 import { BaseAIProvider } from './BaseAIProvider.js';
-import { config } from '../config/index.js';
+import { config, ProviderConfig } from '../config/index.js';
 
 export class AIProviderFactory {
   private static providers: Map<string, BaseAIProvider> = new Map();
@@ -13,40 +13,52 @@ export class AIProviderFactory {
       return this.providers.get(providerName)!;
     }
 
+    const providerConfig = config.apis[providerName];
+    if (!providerConfig) {
+      throw new Error(`Unknown AI provider: ${providerName}`);
+    }
+
+    if (!providerConfig.enabled) {
+      throw new Error(`AI provider ${providerName} is not enabled`);
+    }
+
+    if (!providerConfig.apiKey) {
+      throw new Error(`API key not configured for provider: ${providerName}`);
+    }
+
     let provider: BaseAIProvider;
 
-    switch (providerName.toLowerCase()) {
+    // 根据format字段选择适配器类型
+    switch (providerConfig.format) {
       case 'openai':
-      case 'gpt':
-        if (!config.apis.openai.apiKey) {
-          throw new Error('OpenAI API key not configured');
-        }
-        provider = new OpenAIProvider(config.apis.openai.apiKey);
+        provider = new OpenAIProvider(
+          providerConfig.apiKey,
+          providerConfig.model,
+          providerConfig.baseUrl,
+          providerName
+        );
         break;
 
       case 'claude':
-        if (!config.apis.claude.apiKey) {
-          throw new Error('Claude API key not configured');
-        }
-        provider = new ClaudeProvider(config.apis.claude.apiKey);
+        provider = new ClaudeProvider(
+          providerConfig.apiKey,
+          providerConfig.model,
+          providerConfig.baseUrl,
+          providerName
+        );
         break;
 
       case 'gemini':
-        if (!config.apis.gemini.apiKey) {
-          throw new Error('Gemini API key not configured');
-        }
-        provider = new GeminiProvider(config.apis.gemini.apiKey);
-        break;
-
-      case 'grok':
-        if (!config.apis.grok.apiKey) {
-          throw new Error('Grok API key not configured');
-        }
-        provider = new GrokProvider(config.apis.grok.apiKey);
+        provider = new GeminiProvider(
+          providerConfig.apiKey,
+          providerConfig.model,
+          providerConfig.baseUrl,
+          providerName
+        );
         break;
 
       default:
-        throw new Error(`Unsupported AI provider: ${providerName}`);
+        throw new Error(`Unsupported provider format: ${providerConfig.format} for provider: ${providerName}`);
     }
 
     this.providers.set(providerName, provider);
@@ -54,12 +66,17 @@ export class AIProviderFactory {
   }
 
   static getAvailableProviders(): string[] {
-    const available = [];
-    if (config.apis.openai.apiKey) available.push('openai');
-    if (config.apis.claude.apiKey) available.push('claude');
-    if (config.apis.gemini.apiKey) available.push('gemini');
-    if (config.apis.grok.apiKey) available.push('grok');
-    return available;
+    return Object.entries(config.apis)
+      .filter(([, providerConfig]) => providerConfig.enabled && providerConfig.apiKey)
+      .map(([name]) => name);
+  }
+
+  static getAllProviderConfigs(): Record<string, ProviderConfig> {
+    return { ...config.apis };
+  }
+
+  static getProviderConfig(providerName: string): ProviderConfig | undefined {
+    return config.apis[providerName];
   }
 
   static async createAllAvailableProviders(): Promise<BaseAIProvider[]> {
@@ -68,5 +85,20 @@ export class AIProviderFactory {
       availableProviders.map(name => this.createProvider(name))
     );
     return providers;
+  }
+
+  static validateProvider(providerName: string): boolean {
+    const providerConfig = config.apis[providerName];
+    return !!(providerConfig?.enabled && providerConfig?.apiKey);
+  }
+
+  static getProvidersByFormat(format: 'openai' | 'claude' | 'gemini'): string[] {
+    return Object.entries(config.apis)
+      .filter(([, providerConfig]) => 
+        providerConfig.enabled && 
+        providerConfig.apiKey && 
+        providerConfig.format === format
+      )
+      .map(([name]) => name);
   }
 }

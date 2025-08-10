@@ -2,16 +2,24 @@ import { BaseAIProvider } from './BaseAIProvider.js';
 import { Message, AIModel } from '../types/index.js';
 
 export class ClaudeProvider extends BaseAIProvider {
-  constructor(apiKey: string, model = 'claude-3-sonnet-20240229') {
+  private modelName: string;
+
+  constructor(
+    apiKey: string, 
+    model = 'claude-3-sonnet-20240229', 
+    baseUrl = 'https://api.anthropic.com/v1',
+    providerName = 'claude'
+  ) {
     const aiModel: AIModel = {
-      id: 'claude-3-sonnet',
-      name: 'Claude 3 Sonnet',
+      id: `${providerName}-${model}`,
+      name: `${providerName.charAt(0).toUpperCase() + providerName.slice(1)} (${model})`,
       provider: 'claude',
       maxTokens: 200000,
       supportedFeatures: ['chat', 'reasoning', 'analysis', 'code']
     };
 
-    super(apiKey, 'https://api.anthropic.com/v1', aiModel);
+    super(apiKey, baseUrl, aiModel);
+    this.modelName = model;
   }
 
   protected setupAuth(apiKey: string): void {
@@ -37,7 +45,7 @@ export class ClaudeProvider extends BaseAIProvider {
     const userMessages = messages.filter(m => m.role !== 'system');
 
     return this.client.post('/messages', {
-      model: 'claude-3-sonnet-20240229',
+      model: this.modelName,
       max_tokens: 2000,
       temperature: 0.7,
       system: systemMessage?.content || '',

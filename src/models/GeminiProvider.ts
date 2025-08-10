@@ -2,16 +2,24 @@ import { BaseAIProvider } from './BaseAIProvider.js';
 import { Message, AIModel } from '../types/index.js';
 
 export class GeminiProvider extends BaseAIProvider {
-  constructor(apiKey: string, model = 'gemini-pro') {
+  private modelName: string;
+
+  constructor(
+    apiKey: string, 
+    model = 'gemini-pro', 
+    baseUrl = 'https://generativelanguage.googleapis.com/v1beta',
+    providerName = 'gemini'
+  ) {
     const aiModel: AIModel = {
-      id: 'gemini-pro',
-      name: 'Gemini Pro',
+      id: `${providerName}-${model}`,
+      name: `${providerName.charAt(0).toUpperCase() + providerName.slice(1)} (${model})`,
       provider: 'gemini',
       maxTokens: 32768,
       supportedFeatures: ['chat', 'reasoning', 'multimodal']
     };
 
-    super(apiKey, 'https://generativelanguage.googleapis.com/v1beta', aiModel);
+    super(apiKey, baseUrl, aiModel);
+    this.modelName = model;
   }
 
   protected setupAuth(apiKey: string): void {
@@ -53,7 +61,7 @@ export class GeminiProvider extends BaseAIProvider {
   }
 
   protected async makeRequest(messages: any[]): Promise<any> {
-    return this.client.post('/models/gemini-pro:generateContent', {
+    return this.client.post(`/models/${this.modelName}:generateContent`, {
       contents: messages,
       generationConfig: {
         temperature: 0.7,

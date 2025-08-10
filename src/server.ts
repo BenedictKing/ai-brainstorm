@@ -46,7 +46,55 @@ class AIBrainstormServer {
       res.json({ 
         status: 'healthy', 
         timestamp: new Date().toISOString(),
-        availableProviders: AIProviderFactory.getAvailableProviders()
+        availableProviders: AIProviderFactory.getAvailableProviders(),
+        providerConfigs: Object.fromEntries(
+          Object.entries(AIProviderFactory.getAllProviderConfigs())
+            .filter(([, config]) => config.enabled)
+            .map(([name, config]) => [name, {
+              name,
+              model: config.model,
+              format: config.format,
+              baseUrl: config.baseUrl,
+              enabled: config.enabled
+            }])
+        )
+      });
+    });
+
+    this.app.get('/api/providers', (req: Request, res: Response) => {
+      const configs = AIProviderFactory.getAllProviderConfigs();
+      const providers = Object.entries(configs).map(([name, config]) => ({
+        name,
+        model: config.model,
+        format: config.format,
+        baseUrl: config.baseUrl,
+        enabled: config.enabled,
+        hasApiKey: !!config.apiKey
+      }));
+      
+      res.json({ success: true, data: providers });
+    });
+
+    this.app.get('/api/providers/:name', (req: Request, res: Response) => {
+      const config = AIProviderFactory.getProviderConfig(req.params.name);
+      
+      if (!config) {
+        return res.status(404).json({
+          success: false,
+          error: 'Provider not found'
+        });
+      }
+
+      res.json({
+        success: true,
+        data: {
+          name: req.params.name,
+          model: config.model,
+          format: config.format,
+          baseUrl: config.baseUrl,
+          enabled: config.enabled,
+          hasApiKey: !!config.apiKey
+        }
       });
     });
 

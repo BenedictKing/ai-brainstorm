@@ -2,16 +2,24 @@ import { BaseAIProvider } from './BaseAIProvider.js';
 import { Message, AIModel } from '../types/index.js';
 
 export class OpenAIProvider extends BaseAIProvider {
-  constructor(apiKey: string, model = 'gpt-4') {
+  private modelName: string;
+
+  constructor(
+    apiKey: string, 
+    model = 'gpt-4', 
+    baseUrl = 'https://api.openai.com/v1',
+    providerName = 'openai'
+  ) {
     const aiModel: AIModel = {
-      id: 'openai-gpt4',
-      name: 'GPT-4',
+      id: `${providerName}-${model}`,
+      name: `${providerName.charAt(0).toUpperCase() + providerName.slice(1)} (${model})`,
       provider: 'openai',
       maxTokens: 8192,
       supportedFeatures: ['chat', 'reasoning', 'code']
     };
 
-    super(apiKey, 'https://api.openai.com/v1', aiModel);
+    super(apiKey, baseUrl, aiModel);
+    this.modelName = model;
   }
 
   protected setupAuth(apiKey: string): void {
@@ -31,7 +39,7 @@ export class OpenAIProvider extends BaseAIProvider {
 
   protected async makeRequest(messages: any[]): Promise<any> {
     return this.client.post('/chat/completions', {
-      model: 'gpt-4',
+      model: this.modelName,
       messages,
       temperature: 0.7,
       max_tokens: 2000

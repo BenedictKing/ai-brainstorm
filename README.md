@@ -27,16 +27,65 @@ bun install
 cp .env.example .env
 ```
 
-编辑 `.env` 文件，添加你的API密钥：
+编辑 `.env` 文件，添加你的API密钥。系统支持以下配置方式：
+
+#### 基础配置
+每个AI提供商都可以自定义：
+- `API_KEY`: API密钥
+- `BASE_URL`: 接口地址
+- `MODEL`: 使用的模型名称
+- `FORMAT`: 接口格式(openai/claude/gemini)
 
 ```env
+# OpenAI 配置
 OPENAI_API_KEY=your_openai_api_key_here
-CLAUDE_API_KEY=your_claude_api_key_here
-GEMINI_API_KEY=your_gemini_api_key_here
-GROK_API_KEY=your_grok_api_key_here
+OPENAI_BASE_URL=https://api.openai.com/v1
+OPENAI_MODEL=gpt-4
 
-PORT=3000
+# Claude 配置  
+CLAUDE_API_KEY=your_claude_api_key_here
+CLAUDE_BASE_URL=https://api.anthropic.com/v1
+CLAUDE_MODEL=claude-3-sonnet-20240229
+
+# Gemini 配置
+GEMINI_API_KEY=your_gemini_api_key_here
+GEMINI_BASE_URL=https://generativelanguage.googleapis.com/v1beta
+GEMINI_MODEL=gemini-pro
+
+# Grok 配置 (使用OpenAI兼容格式)
+GROK_API_KEY=your_grok_api_key_here
+GROK_BASE_URL=https://api.x.ai/v1
+GROK_MODEL=grok-beta
+GROK_FORMAT=openai
 ```
+
+#### 自定义提供商
+支持添加无限数量的自定义AI提供商：
+
+```env
+# 格式: CUSTOM_PROVIDER_<NAME>_<FIELD>
+CUSTOM_PROVIDER_AZURE_API_KEY=your_azure_key
+CUSTOM_PROVIDER_AZURE_BASE_URL=https://your-resource.openai.azure.com/openai/deployments/gpt-4/
+CUSTOM_PROVIDER_AZURE_MODEL=gpt-4
+CUSTOM_PROVIDER_AZURE_FORMAT=openai
+
+# 本地大模型 (如Ollama)
+CUSTOM_PROVIDER_OLLAMA_API_KEY=dummy_key
+CUSTOM_PROVIDER_OLLAMA_BASE_URL=http://localhost:11434/v1
+CUSTOM_PROVIDER_OLLAMA_MODEL=llama2
+CUSTOM_PROVIDER_OLLAMA_FORMAT=openai
+
+# 其他兼容服务
+CUSTOM_PROVIDER_DEEPSEEK_API_KEY=your_deepseek_key
+CUSTOM_PROVIDER_DEEPSEEK_BASE_URL=https://api.deepseek.com/v1
+CUSTOM_PROVIDER_DEEPSEEK_MODEL=deepseek-chat
+CUSTOM_PROVIDER_DEEPSEEK_FORMAT=openai
+```
+
+#### 支持的接口格式
+- **openai**: 兼容OpenAI ChatGPT API格式的服务
+- **claude**: Anthropic Claude API格式 
+- **gemini**: Google Gemini API格式
 
 ### 3. 启动服务
 
@@ -87,9 +136,11 @@ bun start
 - `GET /api/knowledge/stats` - 获取知识库统计
 - `GET /api/knowledge/export` - 导出知识库
 
-### 角色相关
+### 提供商相关
 
-- `GET /api/roles` - 获取所有预设角色
+- `GET /api/providers` - 获取所有提供商配置
+- `GET /api/providers/:name` - 获取特定提供商配置
+- `GET /api/health` - 系统健康检查（含提供商状态）
 
 ## 🏗️ 项目结构
 

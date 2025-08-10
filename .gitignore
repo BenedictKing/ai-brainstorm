@@ -122,3 +122,4 @@ Thumbs.db
 *.log
 
 .claude/
+.aider*
