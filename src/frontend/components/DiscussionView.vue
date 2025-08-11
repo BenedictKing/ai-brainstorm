@@ -39,14 +39,16 @@ const props = defineProps({
 
 const emit = defineEmits(['back-to-home'])
 
-const ws = inject('ws')
-const isConnected = inject('isConnected')
+const startPolling = inject('startPolling')
+const stopPolling = inject('stopPolling')
+const isPolling = inject('isPolling')
 const messages = ref([])
 const isLoading = ref(false)
 const nextSpeaker = ref(null)
 const discussionStatus = ref('active')
 const messagesContainer = ref(null)
-const orderedParticipants = ref([]) // <-- Add this state
+const orderedParticipants = ref([])
+const lastMessageCount = ref(0)
 
 // 计算属性
 const statusClass = computed(() => {
@@ -57,111 +59,64 @@ const statusText = computed(() => {
   return discussionStatus.value === 'completed' ? '已完成' : '进行中'
 })
 
-// WebSocket 消息处理
-const handleWebSocketMessage = (event) => {
-  console.log('📨 Received WebSocket message in DiscussionView:', event.data)
-
+// HTTP轮询函数
+const pollDiscussionStatus = async () => {
   try {
-    const message = JSON.parse(event.data)
-
-    // 只处理与当前讨论相关的消息
-    if (message.data?.conversationId && message.data.conversationId !== props.discussionId) {
-      return;
+    const response = await fetch(`/api/discussions/${props.discussionId}/status`)
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`)
     }
-
-    switch (message.type) {
-      case 'discussion_started':
-        console.log('🚀 Discussion started:', message.data)
-        isLoading.value = true
-        nextSpeaker.value = null // 等待round_started事件来确定发言者
-        break
-
-      case 'message_received':
-        console.log('💬 Message received:', message.data)
-        addMessage(message.data.message)
-
-        const { participantIndex, totalParticipants } = message.data
-        if (participantIndex < totalParticipants - 1) {
-          const nextParticipant = orderedParticipants.value[participantIndex + 1]
-          if (nextParticipant) {
-            isLoading.value = true
-            nextSpeaker.value = nextParticipant.roleId
-          }
-        } else {
+    
+    const result = await response.json()
+    if (result.success) {
+      const conversation = result.data
+      
+      // 检查状态变化
+      if (conversation.status !== discussionStatus.value) {
+        discussionStatus.value = conversation.status
+        
+        if (conversation.status === 'completed') {
           isLoading.value = false
           nextSpeaker.value = null
+          orderedParticipants.value = []
+          stopPolling()
         }
-        break
-
-      case 'round_started':
-        console.log('🔄 Round started:', message.data)
-        orderedParticipants.value = message.data.participants
-        
-        addRoundIndicator(message.data.round, message.data.maxRounds)
-        if (message.data.participants?.length > 0) {
-          addDiscussionOrder(message.data.participants.map(p => p.name))
-        }
-
-        if (orderedParticipants.value.length > 0) {
-          isLoading.value = true;
-          nextSpeaker.value = orderedParticipants.value[0].roleId
-        }
-        break
-
-      case 'discussion_completed':
-        console.log('✅ Discussion completed:', message.data)
-        discussionStatus.value = 'completed'
-        isLoading.value = false
-        nextSpeaker.value = null
-        orderedParticipants.value = []
-        break
-
-      case 'discussion_error':
-        console.error('❌ Discussion error:', message.data.error)
-        isLoading.value = false
-        nextSpeaker.value = null
-        alert('讨论过程中出现错误: ' + message.data.error)
-        break
-
-      case 'first_speaker_retry':
-        console.log('🔄 First speaker retry:', message.data)
-        addRetryIndicator(message.data)
-        break
-
-      default:
-        console.log('Unknown message type:', message.type)
+      }
+      
+      // 检查新消息
+      if (conversation.messages && conversation.messages.length > lastMessageCount.value) {
+        const newMessages = conversation.messages.slice(lastMessageCount.value)
+        newMessages.forEach(message => {
+          addMessage(message)
+        })
+        lastMessageCount.value = conversation.messages.length
+      }
+      
+      // 更新参与者信息
+      if (conversation.participants) {
+        orderedParticipants.value = conversation.participants
+      }
     }
   } catch (error) {
-    console.error('Failed to parse WebSocket message:', error)
+    console.error('❌ Failed to poll discussion status:', error)
   }
 }
 
-// 监听WebSocket连接状态变化
-watch([ws, isConnected], () => {
-  if (ws.value && isConnected.value) {
-    setupWebSocketListeners()
+// 监听轮询状态变化
+watch([startPolling, isPolling], () => {
+  if (startPolling && props.discussionId) {
+    setupPolling()
   }
 }, { immediate: true })
 
-// 设置WebSocket监听器
-const setupWebSocketListeners = () => {
-  if (!ws.value || !isConnected.value) return
-
-  console.log('🔗 Setting up WebSocket listeners for discussion:', props.discussionId)
-
-  // 移除之前的监听器（避免重复）
-  ws.value.removeEventListener('message', handleWebSocketMessage)
-
-  // 添加新的监听器
-  ws.value.addEventListener('message', handleWebSocketMessage)
-
-  // 订阅讨论更新
-  ws.value.send(JSON.stringify({
-    type: 'subscribe_discussion',
-    conversationId: props.discussionId
-  }))
-
-  console.log('✅ WebSocket listeners set up successfully')
+// 设置轮询
+const setupPolling = () => {
+  console.log('🔄 Setting up polling for discussion:', props.discussionId)
+  
+  // 开始轮询，每2秒一次
+  startPolling(pollDiscussionStatus, 2000)
+  
+  console.log('✅ Polling set up successfully')
 }
 
 // 方法
@@ -203,9 +158,6 @@ const addRetryIndicator = (retryData) => {
   scrollToBottom()
 }
 
-// REMOVE the getNextSpeakerName function
-// const getNextSpeakerName = (index) => { ... }
-
 const scrollToBottom = () => {
   nextTick(() => {
     if (messagesContainer.value) {
@@ -217,28 +169,22 @@ const scrollToBottom = () => {
 // 生命周期
 onMounted(() => {
   console.log('📱 DiscussionView mounted, discussionId:', props.discussionId)
-
-  // 如果WebSocket已连接，立即设置监听器
-  if (ws.value && isConnected.value) {
-    setupWebSocketListeners()
+  
+  // 初始化消息计数
+  lastMessageCount.value = 0
+  
+  // 开始轮询
+  if (startPolling && props.discussionId) {
+    setupPolling()
   }
-  // 否则等待watch回调处理
 })
 
 onUnmounted(() => {
   console.log('📱 DiscussionView unmounted')
-
-  if (ws.value) {
-    // 移除消息监听器
-    ws.value.removeEventListener('message', handleWebSocketMessage)
-
-    // 取消订阅（如果连接仍然活跃）
-    if (props.discussionId && ws.value.readyState === WebSocket.OPEN) {
-      ws.value.send(JSON.stringify({
-        type: 'unsubscribe_discussion',
-        conversationId: props.discussionId
-      }))
-    }
+  
+  // 停止轮询
+  if (stopPolling) {
+    stopPolling()
   }
 })
 </script>
