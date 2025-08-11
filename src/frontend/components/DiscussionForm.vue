@@ -1,61 +1,75 @@
 <template>
   <div class="discussion-form">
-    <div class="form-group">
-      <label for="question">讨论话题 *</label>
-      <textarea
-        id="question"
-        v-model="form.question"
-        placeholder="请输入你想讨论的问题或话题..."
-        @input="updateStartButton"></textarea>
-    </div>
+    <el-form :model="form" label-width="120px" size="large">
+      <el-form-item label="讨论话题" required>
+        <el-input
+          v-model="form.question"
+          type="textarea"
+          :rows="4"
+          placeholder="请输入你想讨论的问题或话题..."
+          @input="updateStartButton" />
+      </el-form-item>
 
-    <div class="form-group">
-      <label for="context">背景信息 (可选)</label>
-      <textarea id="context" v-model="form.context" placeholder="提供相关背景信息，帮助AI更好地理解话题..."></textarea>
-    </div>
+      <el-form-item label="背景信息">
+        <el-input
+          v-model="form.context"
+          type="textarea"
+          :rows="3"
+          placeholder="提供相关背景信息，帮助AI更好地理解话题..." />
+      </el-form-item>
 
-    <div class="form-group">
-      <label>初次发言人 (自动选择)</label>
-      <div class="first-speaker-section">
-        <ParticipantCard
-          v-if="firstSpeakerRole"
-          :key="firstSpeakerRole.id"
-          :role="firstSpeakerRole"
-          :selected="true"
-          :providers="providers"
-          :initial-provider="roleModelMappings[firstSpeakerRole.id]"
-          :disabled="true"
-          @update-model="updateRoleModel" />
-      </div>
-    </div>
+      <el-form-item label="初次发言人">
+        <div class="first-speaker-section">
+          <ParticipantCard
+            v-if="firstSpeakerRole"
+            :key="firstSpeakerRole.id"
+            :role="firstSpeakerRole"
+            :selected="true"
+            :providers="providers"
+            :initial-provider="roleModelMappings[firstSpeakerRole.id]"
+            :disabled="true"
+            @update-model="updateRoleModel" />
+        </div>
+      </el-form-item>
 
-    <div class="form-group">
-      <label>选择其他参与讨论的AI角色 (至少选择1个)</label>
-      <div class="participants-selector">
-        <ParticipantCard
-          v-for="role in otherRoles"
-          :key="role.id"
-          :role="role"
-          :selected="selectedParticipants.includes(role.id)"
-          :providers="providers"
-          :initial-provider="roleModelMappings[role.id]"
-          @toggle="toggleParticipant"
-          @update-model="updateRoleModel" />
-      </div>
-    </div>
+      <el-form-item label="其他参与者">
+        <div class="participants-selector">
+          <ParticipantCard
+            v-for="role in otherRoles"
+            :key="role.id"
+            :role="role"
+            :selected="selectedParticipants.includes(role.id)"
+            :providers="providers"
+            :initial-provider="roleModelMappings[role.id]"
+            @toggle="toggleParticipant"
+            @update-model="updateRoleModel" />
+        </div>
+      </el-form-item>
 
-    <button class="start-btn" :disabled="!canStartDiscussion" @click="handleStartDiscussion">开始讨论</button>
-
-    <div class="form-actions">
-      <button type="button" class="reset-btn" @click="handleResetCache" title="清空保存的设置，恢复到默认状态">
-        🗑️ 重置设置
-      </button>
-    </div>
+      <el-form-item>
+        <el-button
+          type="primary"
+          size="large"
+          :disabled="!canStartDiscussion"
+          @click="handleStartDiscussion">
+          开始讨论
+        </el-button>
+        <el-button
+          type="default"
+          size="large"
+          @click="handleResetCache"
+          style="margin-left: 12px;">
+          <el-icon><Delete /></el-icon>
+          重置设置
+        </el-button>
+      </el-form-item>
+    </el-form>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, inject, onMounted, watch } from 'vue';
+import { Delete } from '@element-plus/icons-vue';
 import ParticipantCard from './ParticipantCard.vue';
 import { STORAGE_KEYS, loadFromStorage, saveToStorage, clearAppStorage, getClientId } from '../utils/storage.js';
 
@@ -273,35 +287,20 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.form-actions {
-  margin-top: 16px;
-  display: flex;
-  justify-content: flex-end;
+.discussion-form {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 24px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
 }
 
-.reset-btn {
-  background: linear-gradient(135deg, #faf9f7 0%, #f0ebe5 100%);
-  border: 1px solid #e6ddd4;
-  color: #8b5a3c;
-  padding: 10px 16px;
-  border-radius: 10px;
-  cursor: pointer;
-  font-size: 14px;
-  font-weight: 500;
-  transition: all 0.3s ease;
-  box-shadow: 0 2px 4px rgba(139, 90, 60, 0.1);
-}
-
-.reset-btn:hover {
-  background: linear-gradient(135deg, #f0ebe5 0%, #e6ddd4 100%);
-  border-color: #d4a574;
-  color: #5d4e37;
-  transform: translateY(-1px);
-  box-shadow: 0 3px 8px rgba(139, 90, 60, 0.15);
-}
-
-.reset-btn:active {
-  background: linear-gradient(135deg, #e6ddd4 0%, #dac5b3 100%);
-  transform: translateY(0);
+.first-speaker-section,
+.participants-selector {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-top: 8px;
 }
 </style>

@@ -7,18 +7,14 @@
 
     <div class="main-content">
       <!-- 讨论表单 -->
-      <DiscussionForm 
-        v-if="!showDiscussion"
-        @start-discussion="startDiscussion"
-      />
+      <DiscussionForm v-if="!showDiscussion" @start-discussion="startDiscussion" />
 
       <!-- 讨论页面 -->
       <DiscussionView
         v-if="showDiscussion"
         :discussion-id="currentDiscussionId"
         :discussion-title="discussionTitle"
-        @back-to-home="backToHome"
-      />
+        @back-to-home="backToHome" />
 
       <!-- 知识面板 -->
       <KnowledgePanel v-if="showKnowledge" />
@@ -27,44 +23,83 @@
 </template>
 
 <script setup>
-import { ref, provide } from 'vue'
-import DiscussionForm from './components/DiscussionForm.vue'
-import DiscussionView from './components/DiscussionView.vue'
-import KnowledgePanel from './components/KnowledgePanel.vue'
-import { useWebSocket } from './composables/useWebSocket'
-import { useProviders } from './composables/useProviders'
+import { ref, provide } from 'vue';
+import DiscussionForm from './components/DiscussionForm.vue';
+import DiscussionView from './components/DiscussionView.vue';
+import KnowledgePanel from './components/KnowledgePanel.vue';
+import { usePolling } from './composables/useWebSocket';
+import { useProviders } from './composables/useProviders';
 
 // 状态管理
-const showDiscussion = ref(false)
-const showKnowledge = ref(false)
-const currentDiscussionId = ref(null)
-const discussionTitle = ref('')
+const showDiscussion = ref(false);
+const showKnowledge = ref(false);
+const currentDiscussionId = ref(null);
+const discussionTitle = ref('');
 
 // 组合式函数
-const { ws, isConnected, connectWebSocket } = useWebSocket()
-const { providers, loadProviders } = useProviders()
+const { isPolling, startPolling, stopPolling } = usePolling();
+const { providers, loadProviders } = useProviders();
 
 // 提供全局状态
-provide('ws', ws)
-provide('isConnected', isConnected)
-provide('providers', providers)
+provide('isPolling', isPolling);
+provide('startPolling', startPolling);
+provide('stopPolling', stopPolling);
+provide('providers', providers);
 
 // 初始化
-loadProviders()
-connectWebSocket()
+loadProviders();
 
 // 事件处理
 const startDiscussion = ({ discussionId, title }) => {
-  currentDiscussionId.value = discussionId
-  discussionTitle.value = title
-  showDiscussion.value = true
-  showKnowledge.value = false
-}
+  currentDiscussionId.value = discussionId;
+  discussionTitle.value = title;
+  showDiscussion.value = true;
+  showKnowledge.value = false;
+};
 
 const backToHome = () => {
-  showDiscussion.value = false
-  showKnowledge.value = false
-  currentDiscussionId.value = null
-  discussionTitle.value = ''
-}
+  showDiscussion.value = false;
+  showKnowledge.value = false;
+  currentDiscussionId.value = null;
+  discussionTitle.value = '';
+};
 </script>
+
+<style scoped>
+.container {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #faf9f7 0%, #f8f6f3 100%);
+  padding: 0;
+}
+
+.header {
+  background: linear-gradient(135deg, #ffffff 0%, #fdfcfb 100%);
+  padding: 32px 24px;
+  text-align: center;
+  border-bottom: 1px solid #f0ebe5;
+  box-shadow: 0 2px 12px rgba(184, 167, 143, 0.08);
+}
+
+.header h1 {
+  margin: 0 0 12px 0;
+  color: #8b5a3c;
+  font-size: 2.5rem;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  text-shadow: 0 2px 4px rgba(139, 90, 60, 0.1);
+}
+
+.header p {
+  margin: 0;
+  color: #5d4e37;
+  font-size: 1.1rem;
+  font-weight: 400;
+  opacity: 0.8;
+}
+
+.main-content {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 24px;
+}
+</style>
