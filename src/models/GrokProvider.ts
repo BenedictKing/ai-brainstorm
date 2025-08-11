@@ -46,30 +46,55 @@ export class GrokProvider extends BaseAIProvider {
   }
 
   protected async makeRequest(messages: any[], systemPrompt?: string): Promise<any> {
+    const endpoint = '/chat/completions'
     const finalMessages = systemPrompt ? [{ role: 'system', content: systemPrompt }, ...messages] : messages
-
-    const completion = await this.grok.chat.completions.create({
-      model: 'grok-1.5-sonnet', // 修正为固定的 Grok 模型名称
+    const body = {
+      model: 'grok-1.5-sonnet',
       messages: finalMessages,
       temperature: 0.7,
       max_tokens: 16384,
       stream: false,
-    })
+    }
 
+    // 日志记录
+    const url = new URL(endpoint, this.client.defaults.baseURL).href
+    console.log(`\n\n${(this.constructor as any).generateCurlCommand(url, 'POST', { 'Authorization': `Bearer ${this.apiKey}` }, body)}\n\n`)
+    
+    // 使用SDK执行
+    const completion = await this.grok.chat.completions.create(body as any)
     return { data: completion }
   }
 
   protected async makeStreamRequest(messages: any[], systemPrompt?: string): Promise<any> {
+    const endpoint = '/chat/completions'
     const finalMessages = systemPrompt ? [{ role: 'system', content: systemPrompt }, ...messages] : messages
-
-    const stream = await this.grok.chat.completions.create({
-      model: 'grok-1.5-sonnet', // 修正为固定的 Grok 模型名称
+    const body = {
+      model: 'grok-1.5-sonnet',
       messages: finalMessages,
       temperature: 0.7,
       max_tokens: 16384,
       stream: true,
-    })
+    }
 
+    // 日志记录
+    const url = new URL(endpoint, this.client.defaults.baseURL).href
+    console.log(`\n\n${(this.constructor as any).generateCurlCommand(url, 'POST', { 'Authorization': `Bearer ${this.apiKey}` }, body)}\n\n`)
+
+    // 使用SDK执行
+    const stream = await this.grok.chat.completions.create(body as any)
     return { data: stream }
+  }
+  
+  // 覆盖基类方法以处理 OpenAI SDK 的流
+  protected async handleStreamResponse(response: any): Promise<string> {
+    const stream = response.data
+    let fullContent = ''
+    for await (const chunk of stream) {
+      const content = chunk.choices[0]?.delta?.content || ''
+      if (content) {
+        fullContent += content
+      }
+    }
+    return fullContent
   }
 }
