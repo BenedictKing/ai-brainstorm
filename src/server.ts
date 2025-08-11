@@ -114,7 +114,12 @@ class AIBrainstormServer {
 
     this.app.post('/api/discussions', async (req: Request, res: Response) => {
       try {
-        const { question, context } = req.body;
+        const clientId = req.headers['x-client-id'] as string;
+        if (!clientId) {
+          return res.status(400).json({ success: false, error: 'X-Client-ID header is required' });
+        }
+
+        const { question, context, participants } = req.body;
 
         if (!question) {
           return res.status(400).json({
@@ -127,11 +132,11 @@ class AIBrainstormServer {
           id: `topic_${Date.now()}`,
           question,
           context,
-          participants: [], // 参与者现在由DiscussionManager内部决定
+          participants: participants || [],
         };
 
-        const conversationId = await this.discussionManager.startDiscussion(topic);
-        const conversation = this.discussionManager.getConversation(conversationId);
+        const conversationId = await this.discussionManager.startDiscussion(clientId, topic);
+        const conversation = this.discussionManager.getConversation(clientId, conversationId);
 
         res.json({
           success: true,
@@ -150,7 +155,11 @@ class AIBrainstormServer {
     });
 
     this.app.get('/api/discussions/:id', (req: Request, res: Response) => {
-      const conversation = this.discussionManager.getConversation(req.params.id);
+      const clientId = req.headers['x-client-id'] as string;
+      if (!clientId) {
+        return res.status(400).json({ success: false, error: 'X-Client-ID header is required' });
+      }
+      const conversation = this.discussionManager.getConversation(clientId, req.params.id);
 
       if (!conversation) {
         return res.status(404).json({
@@ -163,12 +172,20 @@ class AIBrainstormServer {
     });
 
     this.app.get('/api/discussions', (req: Request, res: Response) => {
-      const conversations = this.discussionManager.getAllConversations();
+      const clientId = req.headers['x-client-id'] as string;
+      if (!clientId) {
+        return res.status(400).json({ success: false, error: 'X-Client-ID header is required' });
+      }
+      const conversations = this.discussionManager.getAllConversations(clientId);
       res.json({ success: true, data: conversations });
     });
 
     this.app.post('/api/discussions/:id/messages', async (req: Request, res: Response) => {
       try {
+        const clientId = req.headers['x-client-id'] as string;
+        if (!clientId) {
+          return res.status(400).json({ success: false, error: 'X-Client-ID header is required' });
+        }
         const { content } = req.body;
 
         if (!content) {
@@ -178,7 +195,7 @@ class AIBrainstormServer {
           });
         }
 
-        const success = this.discussionManager.addMessage(req.params.id, {
+        const success = this.discussionManager.addMessage(clientId, req.params.id, {
           role: 'user',
           content,
         });
@@ -201,6 +218,8 @@ class AIBrainstormServer {
 
     this.app.get('/api/knowledge/search', async (req: Request, res: Response) => {
       try {
+        // 知识库搜索目前不需要 clientId，因为知识库是全局的，而不是每个用户隔离的。
+        // 如果未来有每个用户独立的知识库需求，此处需要添加 clientId 验证。
         const { q: query, limit = '10' } = req.query;
 
         if (!query) {
@@ -222,12 +241,14 @@ class AIBrainstormServer {
     });
 
     this.app.get('/api/knowledge/topics', (req: Request, res: Response) => {
+      // 知识库话题列表目前不需要 clientId
       const topics = this.knowledgeManager.getTopicList();
       res.json({ success: true, data: topics });
     });
 
     this.app.get('/api/knowledge/topics/:topic/summary', async (req: Request, res: Response) => {
       try {
+        // 知识库话题摘要目前不需要 clientId
         const summary = await this.knowledgeManager.generateKnowledgeSummary(req.params.topic);
         res.json({ success: true, data: { summary } });
       } catch (error: any) {
@@ -239,12 +260,14 @@ class AIBrainstormServer {
     });
 
     this.app.get('/api/knowledge/stats', (req: Request, res: Response) => {
+      // 知识库统计目前不需要 clientId
       const stats = this.knowledgeManager.getKnowledgeStats();
       res.json({ success: true, data: stats });
     });
 
     this.app.get('/api/knowledge/export', async (req: Request, res: Response) => {
       try {
+        // 知识库导出目前不需要 clientId
         const format = (req.query.format as 'json' | 'markdown') || 'json';
         const data = await this.knowledgeManager.exportKnowledge(format);
 
@@ -265,7 +288,11 @@ class AIBrainstormServer {
     // Add polling endpoint for discussion status
     this.app.get('/api/discussions/:id/status', (req: Request, res: Response) => {
       try {
-        const conversation = this.discussionManager.getConversation(req.params.id);
+        const clientId = req.headers['x-client-id'] as string;
+        if (!clientId) {
+          return res.status(400).json({ success: false, error: 'X-Client-ID header is required' });
+        }
+        const conversation = this.discussionManager.getConversation(clientId, req.params.id);
 
         if (!conversation) {
           return res.status(404).json({
