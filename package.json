@@ -3,9 +3,12 @@
   "version": "1.0.0",
   "description": "Multi-AI discussion platform with role-based conversation and knowledge management",
   "main": "dist/index.js",
+  "type": "module",
   "scripts": {
     "start": "node dist/index.js",
-    "dev": "nodemon --watch src --ext ts,js,json --exec \"ts-node src/index.ts\"",
+    "dev": "concurrently \"nodemon --watch src --ext ts,js,json --exec 'ts-node src/index.ts'\" \"vite\"",
+    "dev:backend": "nodemon --watch src --ext ts,js,json --exec \"ts-node src/index.ts\"",
+    "dev:frontend": "vite",
     "build": "tsc && vite build",
     "postinstall": "npm run build",
     "test": "jest"
@@ -43,6 +46,7 @@
     "@types/node": "^20.0.0",
     "@types/uuid": "^9.0.7",
     "@types/ws": "^8.5.10",
+    "concurrently": "^9.2.0",
     "nodemon": "^3.1.10",
     "ts-node": "^10.9.0",
     "typescript": "^5.0.0"
