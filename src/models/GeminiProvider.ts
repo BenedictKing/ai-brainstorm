@@ -1,17 +1,12 @@
 import { BaseAIProvider } from './BaseAIProvider.js'
 import { Message, AIModel } from '../types/index.js'
-import { GoogleGenerativeAI } from '@google/generative-ai'
+// 移除 GoogleGenerativeAI SDK 导入
 
 export class GeminiProvider extends BaseAIProvider {
   private modelName: string
-  private genAI: GoogleGenerativeAI
+  // 移除 genAI 成员
 
-  constructor(
-    apiKey: string,
-    model = 'gemini-1.5-pro',
-    baseUrl = 'https://generativelanguage.googleapis.com/v1beta',
-    providerName = 'gemini'
-  ) {
+  constructor(apiKey: string, model = 'gemini-1.5-pro', baseUrl = 'https://generativelanguage.googleapis.com/v1beta', providerName = 'gemini') {
     const aiModel: AIModel = {
       id: `${providerName}-${model}`,
       name: `${providerName.charAt(0).toUpperCase() + providerName.slice(1)} (${model})`,
@@ -22,11 +17,10 @@ export class GeminiProvider extends BaseAIProvider {
 
     super(apiKey, baseUrl, aiModel)
     this.modelName = model
-    this.genAI = new GoogleGenerativeAI(apiKey)
   }
 
   protected setupAuth(apiKey: string): void {
-    // SDK handles auth automatically
+    // Gemini 的 auth 通过 URL query param 实现，此处为空
   }
 
   protected formatMessages(messages: Message[]): any[] {
@@ -69,31 +63,36 @@ export class GeminiProvider extends BaseAIProvider {
   }
 
   protected async makeRequest(messages: any[], systemPrompt?: string): Promise<any> {
-    const model = this.genAI.getGenerativeModel({
-      model: this.modelName,
+    const endpoint = `/models/${this.modelName}:generateContent?key=${this.apiKey}`
+    const body = {
+      contents: messages,
       generationConfig: {
         temperature: 0.7,
         maxOutputTokens: 16384,
       },
-      systemInstruction: systemPrompt,
-    })
+      systemInstruction: systemPrompt ? { parts: [{ text: systemPrompt }] } : undefined,
+    }
 
-    const result = await model.generateContent({ contents: messages })
+    const url = new URL(endpoint.replace(this.apiKey, '[REDACTED]'), this.client.defaults.baseURL).href
+    console.log(`\n\n${(this.constructor as any).generateCurlCommand(url, 'POST', this.client.defaults.headers.common, body)}\n\n`)
 
-    return { data: result.response }
+    return this.client.post(endpoint, body)
   }
 
   protected async makeStreamRequest(messages: any[], systemPrompt?: string): Promise<any> {
-    const model = this.genAI.getGenerativeModel({
-      model: this.modelName,
+    const endpoint = `/models/${this.modelName}:streamGenerateContent?key=${this.apiKey}`
+    const body = {
+      contents: messages,
       generationConfig: {
         temperature: 0.7,
         maxOutputTokens: 16384,
       },
-      systemInstruction: systemPrompt,
-    })
+      systemInstruction: systemPrompt ? { parts: [{ text: systemPrompt }] } : undefined,
+    }
 
-    const result = await model.generateContentStream({ contents: messages })
-    return { data: result.stream }
+    const url = new URL(endpoint.replace(this.apiKey, '[REDACTED]'), this.client.defaults.baseURL).href
+    console.log(`\n\n${(this.constructor as any).generateCurlCommand(url, 'POST', this.client.defaults.headers.common, body)}\n\n`)
+
+    return this.client.post(endpoint, body, { responseType: 'stream' })
   }
 }

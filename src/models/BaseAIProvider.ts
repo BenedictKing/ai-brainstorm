@@ -7,8 +7,10 @@ export abstract class BaseAIProvider {
   protected client: AxiosInstance
   protected model: AIModel
   protected retryConfig: RetryConfig
+  protected apiKey: string // 新增 apiKey 成员
 
   constructor(apiKey: string, baseUrl: string, model: AIModel) {
+    this.apiKey = apiKey // 保存 apiKey
     this.model = model
     this.retryConfig = config.retry
 
@@ -112,26 +114,8 @@ export abstract class BaseAIProvider {
       let fullContent = ''
 
       try {
-        // 检查是否是 OpenAI SDK 的流式响应 (AsyncIterable)
-        if (response.data && Symbol.asyncIterator in response.data) {
-          for await (const chunk of response.data) {
-            // OpenAI format
-            const openaiContent = chunk.choices?.[0]?.delta?.content
-            // Anthropic format
-            const anthropicContent = chunk.delta?.text
-            // Gemini format
-            const geminiContent = chunk.candidates?.[0]?.content?.parts?.[0]?.text || chunk.text?.()
-
-            const content = openaiContent || anthropicContent || geminiContent
-            if (content) {
-              fullContent += content
-            }
-          }
-          resolve(fullContent)
-          return
-        }
-
-        // 传统的流式响应处理 (适用于自定义实现)
+        // 移除了SDK特有的 Symbol.asyncIterator 逻辑
+        // 现在只处理标准的 axios 流
         response.data.on('data', (chunk: Buffer) => {
           const lines = chunk
             .toString()
@@ -176,5 +160,29 @@ export abstract class BaseAIProvider {
 
   getModel(): AIModel {
     return this.model
+  }
+
+  // 在文件末尾添加新的私有静态方法
+  private static generateCurlCommand(url: string, method: string, headers: Record<string, any>, body: Record<string, any>): string {
+    const maskedHeaders = { ...headers };
+    
+    // 屏蔽敏感信息
+    if (maskedHeaders['Authorization']) {
+      maskedHeaders['Authorization'] = 'Bearer [REDACTED]';
+    }
+    if (maskedHeaders['x-api-key']) {
+      maskedHeaders['x-api-key'] = '[REDACTED]';
+    }
+    
+    let curl = `curl '${url}' \\\n`;
+    curl += `  -X ${method.toUpperCase()} \\\n`;
+
+    for (const [key, value] of Object.entries(maskedHeaders)) {
+      curl += `  -H '${key}: ${value}' \\\n`;
+    }
+
+    curl += `  -d '${JSON.stringify(body, null, 2)}'`;
+
+    return curl;
   }
 }
