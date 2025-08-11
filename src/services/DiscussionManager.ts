@@ -31,29 +31,36 @@ export class DiscussionManager extends EventEmitter {
   }
 
   async startDiscussion(
-    topic: DiscussionTopic,
-    participants: string[] = ['critic', 'supporter', 'synthesizer']
+    topic: DiscussionTopic
   ): Promise<string> {
     const conversationId = uuidv4();
     
-    const aiParticipants: AIParticipant[] = [];
+    // 固定的讨论会参与者
+    const discussionProviders = ['gemini', 'claude', 'openai', 'grok'];
     const availableProviders = AIProviderFactory.getAvailableProviders();
+
+    // 筛选出已启用并配置了API Key的提供商
+    const validProviders = discussionProviders.filter(p => availableProviders.includes(p));
+
+    if (!validProviders.includes('gemini')) {
+      throw new Error("Gemini provider is not available or configured. It's required for the initial response.");
+    }
     
-    for (let i = 0; i < participants.length; i++) {
-      const roleId = participants[i];
-      const providerIndex = i % availableProviders.length;
-      const provider = availableProviders[providerIndex];
-      
-      try {
-        const participant = RoleManager.createParticipant(roleId, provider);
-        aiParticipants.push(participant);
-      } catch (error) {
-        console.warn(`Failed to create participant for role ${roleId}:`, error);
-      }
+    const aiParticipants: AIParticipant[] = [];
+    const expertRole = RoleManager.getRoleById('expert'); // 使用"领域专家"作为基础角色模板
+    if (!expertRole) {
+      throw new Error("Default 'expert' role not found.");
     }
 
-    if (aiParticipants.length === 0) {
-      throw new Error('No participants could be created for the discussion');
+    for (const provider of validProviders) {
+      // 为每个参与者创建一个更具描述性的名字
+      const participantName = `${provider.charAt(0).toUpperCase() + provider.slice(1)} (${expertRole.name})`;
+      const participant = RoleManager.createParticipant(expertRole.id, provider, participantName);
+      aiParticipants.push(participant);
+    }
+
+    if (aiParticipants.length < 2) {
+      throw new Error('At least two AI providers must be enabled to start a discussion.');
     }
 
     const conversation: Conversation = {
@@ -68,10 +75,11 @@ export class DiscussionManager extends EventEmitter {
       participants: aiParticipants,
       createdAt: new Date(),
       updatedAt: new Date(),
-      tags: ['discussion', 'multi-ai']
+      tags: ['discussion', 'panel-mode']
     };
 
     this.activeConversations.set(conversationId, conversation);
+    // 在startDiscussion的参数中移除participants
     this.emit('discussionStarted', { conversationId, topic, participants: aiParticipants });
 
     this.runDiscussion(conversationId).catch(error => {
@@ -152,67 +160,46 @@ export class DiscussionManager extends EventEmitter {
   }
 
   private getDiscussionOrder(participants: AIParticipant[]): AIParticipant[] {
-    // 优先级：支持者 > 批判者 > 创新者 > 专家 > 综合者 > 魔鬼代言人
-    const roleOrder = ['supporter', 'critic', 'innovator', 'expert', 'synthesizer', 'devil_advocate'];
+    // 确保Gemini模型第一个发言
+    const geminiParticipant = participants.find(p => p.model.provider === 'gemini');
+    const otherParticipants = participants.filter(p => p.model.provider !== 'gemini');
+
+    if (!geminiParticipant) {
+      // 如果Gemini由于某种原因不存在，则按原顺序返回，尽管startDiscussion中已有检查
+      console.warn("Could not find Gemini participant for ordering. Proceeding with default order.");
+      return participants;
+    }
     
-    const orderedParticipants: AIParticipant[] = [];
-    const remainingParticipants = [...participants];
-
-    // 按角色优先级排序
-    roleOrder.forEach(roleId => {
-      const participant = remainingParticipants.find(p => 
-        p.name.includes(this.getRoleNameById(roleId))
-      );
-      if (participant) {
-        orderedParticipants.push(participant);
-        const index = remainingParticipants.indexOf(participant);
-        remainingParticipants.splice(index, 1);
-      }
-    });
-
-    // 添加任何剩余的参与者
-    orderedParticipants.push(...remainingParticipants);
-
-    return orderedParticipants;
+    return [geminiParticipant, ...otherParticipants];
   }
 
-  private getRoleNameById(roleId: string): string {
-    const roleNames: Record<string, string> = {
-      'supporter': '支持者',
-      'critic': '批判性思考者',
-      'innovator': '创新者',
-      'expert': '领域专家',
-      'synthesizer': '综合者',
-      'devil_advocate': '魔鬼代言人'
-    };
-    return roleNames[roleId] || roleId;
-  }
 
   private buildContextualPrompt(conversation: Conversation, participant: AIParticipant, isFirstSpeaker: boolean): string {
     const originalQuestion = conversation.messages.find(m => m.role === 'user')?.content || '';
-    const previousResponses = conversation.messages.filter(m => m.role === 'assistant');
 
     if (isFirstSpeaker) {
-      // 第一个发言者（通常是支持者）直接回答问题
-      return `请针对以下问题提供你的观点和分析：
+      // Gemini的提示词：作为首个回答者，请全面回答问题
+      return `你被指定为本次讨论的首位发言者。请针对以下问题提供一个全面、深入、结构化的基础回答。你的回答将作为后续讨论的起点。
 
-问题：${originalQuestion}
-
-请提供详细、有建设性的回答。`;
+问题：
+${originalQuestion}`;
     } else {
-      // 后续发言者需要参考之前的讨论内容
-      const previousDiscussion = previousResponses.map((msg, index) => 
-        `${msg.metadata?.participantName || `发言者${index + 1}`}：${msg.content}`
-      ).join('\n\n');
+      // 其他模型的提示词：基于问题和Gemini的回答进行思辨
+      const firstResponse = conversation.messages.find(m => m.role === 'assistant');
+      const firstSpeakerName = firstResponse?.metadata?.participantName || '首位发言者';
+      const firstAnswer = firstResponse?.content || '（首位发言者未能提供回答）';
 
-      return `这是一个讨论会，请基于以下问题和之前的发言，提供你的思辨和反馈：
+      return `这是一个专题讨论会。请仔细阅读原始问题以及由 ${firstSpeakerName} 提供的基础回答。
 
-原始问题：${originalQuestion}
+你的任务是基于上述内容，从你的专业角度提出独特的思辨、反馈、质疑、补充或完全不同的观点。请确保你的发言具有深度和洞察力。
 
-之前的讨论：
-${previousDiscussion}
+原始问题：
+${originalQuestion}
 
-请针对原始问题和上述讨论内容，提供你的独特观点、思辨或反馈。可以支持、质疑、补充或从新角度分析。`;
+${firstSpeakerName} 的回答：
+${firstAnswer}
+
+现在，请开始你的思辨和反馈：`;
     }
   }
 

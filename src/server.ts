@@ -105,7 +105,7 @@ class AIBrainstormServer {
 
     this.app.post('/api/discussions', async (req: Request, res: Response) => {
       try {
-        const { question, context, participants = ['critic', 'supporter', 'synthesizer'] } = req.body;
+        const { question, context } = req.body;
 
         if (!question) {
           return res.status(400).json({ 
@@ -118,17 +118,18 @@ class AIBrainstormServer {
           id: `topic_${Date.now()}`,
           question,
           context,
-          participants
+          participants: [] // 参与者现在由DiscussionManager内部决定
         };
 
-        const conversationId = await this.discussionManager.startDiscussion(topic, participants);
+        const conversationId = await this.discussionManager.startDiscussion(topic);
+        const conversation = this.discussionManager.getConversation(conversationId);
         
         res.json({ 
           success: true, 
           data: { 
             conversationId,
             topic,
-            participants: participants.map((p: string) => RoleManager.getRoleById(p))
+            participants: conversation ? conversation.participants : []
           }
         });
 
