@@ -1,12 +1,14 @@
 import { BaseAIProvider } from "./BaseAIProvider";
 import { Message, AIModel } from "../types/index";
+import Anthropic from "@anthropic-ai/sdk";
 
 export class ClaudeProvider extends BaseAIProvider {
   private modelName: string;
+  private anthropic: Anthropic;
 
   constructor(
     apiKey: string,
-    model = "claude-4-sonnet",
+    model = "claude-3-5-sonnet-20241022",
     baseUrl = "https://api.anthropic.com/v1",
     providerName = "claude"
   ) {
@@ -22,11 +24,14 @@ export class ClaudeProvider extends BaseAIProvider {
 
     super(apiKey, baseUrl, aiModel);
     this.modelName = model;
+    this.anthropic = new Anthropic({
+      apiKey: apiKey,
+      baseURL: baseUrl,
+    });
   }
 
   protected setupAuth(apiKey: string): void {
-    this.client.defaults.headers.common["x-api-key"] = apiKey;
-    this.client.defaults.headers.common["anthropic-version"] = "2023-06-01";
+    // SDK handles auth automatically
   }
 
   protected formatMessages(messages: Message[]): any[] {
@@ -42,16 +47,46 @@ export class ClaudeProvider extends BaseAIProvider {
     return response.content[0]?.text || "";
   }
 
+  protected parseStreamResponse(chunk: string): string | null {
+    try {
+      const parsed = JSON.parse(chunk);
+      if (parsed.type === "content_block_delta") {
+        return parsed.delta?.text || null;
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  }
+
   protected async makeRequest(messages: any[]): Promise<any> {
     const systemMessage = messages.find((m) => m.role === "system");
     const userMessages = messages.filter((m) => m.role !== "system");
 
-    return this.client.post("/messages", {
+    const completion = await this.anthropic.messages.create({
       model: this.modelName,
-      max_tokens: 2000,
+      max_tokens: 16384,
       temperature: 0.7,
       system: systemMessage?.content || "",
       messages: userMessages,
     });
+
+    return { data: completion };
+  }
+
+  protected async makeStreamRequest(messages: any[]): Promise<any> {
+    const systemMessage = messages.find((m) => m.role === "system");
+    const userMessages = messages.filter((m) => m.role !== "system");
+
+    const stream = await this.anthropic.messages.create({
+      model: this.modelName,
+      max_tokens: 16384,
+      temperature: 0.7,
+      system: systemMessage?.content || "",
+      messages: userMessages,
+      stream: true,
+    });
+
+    return { data: stream };
   }
 }

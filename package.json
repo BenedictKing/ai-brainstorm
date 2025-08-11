@@ -20,13 +20,19 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.59.0",
+    "@google/generative-ai": "^0.24.1",
+    "@vitejs/plugin-vue": "^6.0.1",
     "axios": "^1.6.0",
     "cors": "^2.8.5",
     "dotenv": "^17.2.1",
     "express": "^4.18.2",
     "lodash": "^4.17.21",
     "moment": "^2.29.4",
+    "openai": "^5.12.2",
     "uuid": "^9.0.1",
+    "vite": "^7.1.1",
+    "vue": "3",
     "ws": "^8.14.2"
   },
   "devDependencies": {
@@ -37,7 +43,7 @@
     "@types/node": "^20.0.0",
     "@types/uuid": "^9.0.7",
     "@types/ws": "^8.5.10",
-    "nodemon": "^2.0.22",
+    "nodemon": "^3.1.10",
     "ts-node": "^10.9.0",
     "typescript": "^5.0.0"
   }

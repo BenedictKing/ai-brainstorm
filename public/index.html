@@ -147,6 +147,7 @@
             margin-top: 8px;
             padding-top: 8px;
             border-top: 1px solid #e2e8f0;
+            position: relative;
         }
 
         .ai-model-label {
@@ -162,6 +163,73 @@
             background: rgba(14, 165, 233, 0.1);
             padding: 2px 6px;
             border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .ai-model-name:hover {
+            background: rgba(14, 165, 233, 0.2);
+            transform: scale(1.05);
+        }
+
+        .ai-model-name::after {
+            content: '▼';
+            font-size: 8px;
+            opacity: 0.7;
+        }
+
+        .model-selector {
+            position: absolute;
+            top: 100%;
+            right: 0;
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+            z-index: 9999;
+            min-width: 180px;
+            max-height: 200px;
+            overflow-y: auto;
+            display: none;
+        }
+
+        .model-option {
+            padding: 8px 12px;
+            cursor: pointer;
+            border-bottom: 1px solid #f1f5f9;
+            transition: background-color 0.2s;
+        }
+
+        .model-option:last-child {
+            border-bottom: none;
+        }
+
+        .model-option:hover {
+            background: #f8fafc;
+        }
+
+        .model-option.selected {
+            background: rgba(14, 165, 233, 0.1);
+            color: #0ea5e9;
+        }
+
+        .model-option.disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .provider-name {
+            font-weight: 600;
+            color: #1e293b;
+        }
+
+        .model-name {
+            font-size: 10px;
+            color: #64748b;
+            margin-top: 2px;
         }
 
         .start-btn {
@@ -580,6 +648,7 @@
         let currentRound = 0;
         let nextSpeakerIndex = 0;
         let availableProviders = {}; // 存储从API获取的提供商配置
+        let roleModelMappings = {}; // 存储每个角色选择的模型
 
         const roles = [
             {
@@ -645,6 +714,67 @@
             }
         }
 
+        function createModelSelector(roleId, currentProvider) {
+            const enabledProviders = Object.values(availableProviders).filter(p => p.enabled);
+            
+            const selectorHtml = `
+                <div class="model-selector" id="selector-${roleId}">
+                    ${enabledProviders.map(provider => `
+                        <div class="model-option ${provider.name === currentProvider ? 'selected' : ''}" 
+                             data-provider="${provider.name}" data-role="${roleId}">
+                            <div class="provider-name">${provider.name.charAt(0).toUpperCase() + provider.name.slice(1)}</div>
+                            <div class="model-name">${provider.model}</div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+            
+            return selectorHtml;
+        }
+
+        function toggleModelSelector(roleId, event) {
+            event.stopPropagation();
+            
+            // 关闭其他打开的选择器
+            document.querySelectorAll('.model-selector').forEach(selector => {
+                if (selector.id !== `selector-${roleId}`) {
+                    selector.style.display = 'none';
+                }
+            });
+            
+            const selector = document.getElementById(`selector-${roleId}`);
+            if (selector) {
+                selector.style.display = selector.style.display === 'none' ? 'block' : 'none';
+            }
+        }
+
+        function selectModel(roleId, providerName) {
+            // 更新角色的模型映射
+            roleModelMappings[roleId] = providerName;
+            
+            // 更新显示
+            const modelNameElement = document.querySelector(`[data-role-id="${roleId}"] .ai-model-name`);
+            if (modelNameElement) {
+                const provider = availableProviders[providerName];
+                if (provider) {
+                    modelNameElement.textContent = `${provider.name.charAt(0).toUpperCase() + provider.name.slice(1)} - ${provider.model}`;
+                }
+            }
+            
+            // 关闭选择器
+            const selector = document.getElementById(`selector-${roleId}`);
+            if (selector) {
+                selector.style.display = 'none';
+            }
+        }
+
+        // 点击其他地方时关闭所有选择器
+        document.addEventListener('click', function() {
+            document.querySelectorAll('.model-selector').forEach(selector => {
+                selector.style.display = 'none';
+            });
+        });
+
         function getProviderModel(suggestedProvider) {
             const provider = availableProviders[suggestedProvider];
             if (provider && provider.enabled) {
@@ -683,8 +813,14 @@
                 card.className = 'participant-card';
                 card.dataset.roleId = role.id;
                 
-                const providerName = getProviderDisplayName(role.suggestedProvider);
-                const modelName = getProviderModel(role.suggestedProvider);
+                // 初始化角色的默认模型映射
+                if (!roleModelMappings[role.id]) {
+                    roleModelMappings[role.id] = role.suggestedProvider;
+                }
+                
+                const currentProvider = roleModelMappings[role.id];
+                const providerName = getProviderDisplayName(currentProvider);
+                const modelName = getProviderModel(currentProvider);
                 
                 card.innerHTML = `
                     <div class="badge">${role.tags[0]}</div>
@@ -692,12 +828,31 @@
                     <p>${role.description}</p>
                     <div class="ai-model-info">
                         <span class="ai-model-label">AI模型:</span>
-                        <span class="ai-model-name">${providerName} - ${modelName}</span>
+                        <span class="ai-model-name" onclick="toggleModelSelector('${role.id}', event)">
+                            ${providerName} - ${modelName}
+                        </span>
+                        ${createModelSelector(role.id, currentProvider)}
                     </div>
                 `;
                 
-                card.addEventListener('click', () => toggleParticipant(role.id, card));
+                card.addEventListener('click', (event) => {
+                    // 如果点击的是模型选择相关元素，不触发角色选择
+                    if (event.target.closest('.ai-model-info')) {
+                        return;
+                    }
+                    toggleParticipant(role.id, card);
+                });
+                
                 container.appendChild(card);
+            });
+            
+            // 添加模型选择器的事件监听
+            container.addEventListener('click', function(event) {
+                if (event.target.classList.contains('model-option')) {
+                    const providerName = event.target.dataset.provider;
+                    const roleId = event.target.dataset.role;
+                    selectModel(roleId, providerName);
+                }
             });
         }
 
