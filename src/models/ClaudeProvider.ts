@@ -59,31 +59,25 @@ export class ClaudeProvider extends BaseAIProvider {
     }
   }
 
-  protected async makeRequest(messages: any[]): Promise<any> {
-    const systemMessage = messages.find((m) => m.role === "system");
-    const userMessages = messages.filter((m) => m.role !== "system");
-
+  protected async makeRequest(messages: any[], systemPrompt?: string): Promise<any> {
     const completion = await this.anthropic.messages.create({
       model: this.modelName,
       max_tokens: 16384,
       temperature: 0.7,
-      system: systemMessage?.content || "",
-      messages: userMessages,
+      system: systemPrompt || "",
+      messages: messages,
     });
 
     return { data: completion };
   }
 
-  protected async makeStreamRequest(messages: any[]): Promise<any> {
-    const systemMessage = messages.find((m) => m.role === "system");
-    const userMessages = messages.filter((m) => m.role !== "system");
-
+  protected async makeStreamRequest(messages: any[], systemPrompt?: string): Promise<any> {
     const stream = await this.anthropic.messages.create({
       model: this.modelName,
       max_tokens: 16384,
       temperature: 0.7,
-      system: systemMessage?.content || "",
-      messages: userMessages,
+      system: systemPrompt || "",
+      messages: messages,
       stream: true,
     });
 

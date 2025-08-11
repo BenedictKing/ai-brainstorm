@@ -54,10 +54,12 @@ export class OpenAIProvider extends BaseAIProvider {
     }
   }
 
-  protected async makeRequest(messages: any[]): Promise<any> {
+  protected async makeRequest(messages: any[], systemPrompt?: string): Promise<any> {
+    const finalMessages = systemPrompt ? [{ role: 'system', content: systemPrompt }, ...messages] : messages;
+    
     const completion = await this.openai.chat.completions.create({
       model: this.modelName,
-      messages,
+      messages: finalMessages,
       temperature: 0.7,
       max_tokens: 16384,
     });
@@ -65,10 +67,12 @@ export class OpenAIProvider extends BaseAIProvider {
     return { data: completion };
   }
 
-  protected async makeStreamRequest(messages: any[]): Promise<any> {
+  protected async makeStreamRequest(messages: any[], systemPrompt?: string): Promise<any> {
+    const finalMessages = systemPrompt ? [{ role: 'system', content: systemPrompt }, ...messages] : messages;
+
     const stream = await this.openai.chat.completions.create({
       model: this.modelName,
-      messages,
+      messages: finalMessages,
       temperature: 0.7,
       max_tokens: 16384,
       stream: true,

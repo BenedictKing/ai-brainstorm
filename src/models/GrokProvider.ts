@@ -45,10 +45,12 @@ export class GrokProvider extends BaseAIProvider {
     }
   }
 
-  protected async makeRequest(messages: any[]): Promise<any> {
+  protected async makeRequest(messages: any[], systemPrompt?: string): Promise<any> {
+    const finalMessages = systemPrompt ? [{ role: 'system', content: systemPrompt }, ...messages] : messages;
+
     const completion = await this.grok.chat.completions.create({
       model: "grok-beta",
-      messages,
+      messages: finalMessages,
       temperature: 0.7,
       max_tokens: 2000,
       stream: false,
@@ -57,10 +59,12 @@ export class GrokProvider extends BaseAIProvider {
     return { data: completion };
   }
 
-  protected async makeStreamRequest(messages: any[]): Promise<any> {
+  protected async makeStreamRequest(messages: any[], systemPrompt?: string): Promise<any> {
+    const finalMessages = systemPrompt ? [{ role: 'system', content: systemPrompt }, ...messages] : messages;
+
     const stream = await this.grok.chat.completions.create({
       model: "grok-beta",
-      messages,
+      messages: finalMessages,
       temperature: 0.7,
       max_tokens: 2000,
       stream: true,
