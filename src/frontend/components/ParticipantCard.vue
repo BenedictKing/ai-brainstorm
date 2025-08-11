@@ -1,7 +1,7 @@
 <template>
   <div 
     class="participant-card"
-    :class="{ selected }"
+    :class="{ selected, disabled }"
     @click="handleCardClick"
   >
     <div class="badge">{{ role.tags[0] }}</div>
@@ -46,7 +46,11 @@ const props = defineProps({
   role: Object,
   selected: Boolean,
   providers: Object,
-  initialProvider: String // 新增：从localStorage恢复的provider
+  initialProvider: String, // 新增：从localStorage恢复的provider
+  disabled: {
+    type: Boolean,
+    default: false
+  }
 })
 
 const emit = defineEmits(['toggle', 'update-model'])
