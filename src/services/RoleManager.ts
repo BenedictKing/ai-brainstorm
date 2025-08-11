@@ -29,6 +29,14 @@ export class RoleManager {
       tags: ['支持', '扩展', '建设性']
     },
     {
+      id: 'first_speaker',
+      name: '初次发言人',
+      description: '作为本次讨论的首位发言者，请提供一个结构化、全面的基础回答，作为后续讨论的起点',
+      systemPrompt: '你是本次讨论的首位发言人。请针对用户提出的问题给出清晰、结构化且有深度的首轮回答，这个回答将被其他AI用作讨论的基础。注意保持条理性，并提供关键要点和结论。',
+      suggestedModel: 'gemini',
+      tags: ['首发', '引导', '总结']
+    },
+    {
       id: 'synthesizer',
       name: '综合者',
       description: '整合不同观点，寻找共同点和平衡方案',

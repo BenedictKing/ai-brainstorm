@@ -90,6 +90,13 @@ const roles = ref([
     tags: ['支持', '扩展', '建设性']
   },
   {
+    id: 'first_speaker',
+    name: '初次发言人',
+    description: '作为本次讨论的首位发言者，请提供一个结构化、全面的基础回答，作为后续讨论的起点',
+    suggestedProvider: 'gemini',
+    tags: ['首发', '引导', '总结']
+  },
+  {
     id: 'synthesizer',
     name: '综合者',
     description: '整合不同观点，寻找共同点和平衡方案',

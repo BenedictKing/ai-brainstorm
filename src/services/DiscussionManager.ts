@@ -51,11 +51,18 @@ export class DiscussionManager extends EventEmitter {
     if (!expertRole) {
       throw new Error("Default 'expert' role not found.");
     }
+    const firstSpeakerRole = RoleManager.getRoleById('first_speaker');
+    if (!firstSpeakerRole) {
+      throw new Error("Default 'first_speaker' role not found.");
+    }
 
     for (const provider of validProviders) {
-      // 为每个参与者创建一个更具描述性的名字
-      const participantName = `${provider.charAt(0).toUpperCase() + provider.slice(1)} (${expertRole.name})`;
-      const participant = RoleManager.createParticipant(expertRole.id, provider, participantName);
+      const useFirstSpeaker = provider === 'gemini' && firstSpeakerRole;
+      const roleId = useFirstSpeaker ? firstSpeakerRole!.id : expertRole.id;
+      const roleName = useFirstSpeaker ? firstSpeakerRole!.name : expertRole.name;
+
+      const participantName = `${provider.charAt(0).toUpperCase() + provider.slice(1)} (${roleName})`;
+      const participant = RoleManager.createParticipant(roleId, provider, participantName);
       aiParticipants.push(participant);
     }
 
