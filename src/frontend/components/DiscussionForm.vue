@@ -20,10 +20,26 @@
     </div>
 
     <div class="form-group">
-      <label>选择参与讨论的AI角色 (至少选择2个)</label>
+      <label>初次发言人 (自动选择)</label>
+      <div class="first-speaker-section">
+        <ParticipantCard
+          v-if="firstSpeakerRole"
+          :key="firstSpeakerRole.id"
+          :role="firstSpeakerRole"
+          :selected="true"
+          :providers="providers"
+          :initial-provider="roleModelMappings[firstSpeakerRole.id]"
+          :disabled="true"
+          @update-model="updateRoleModel"
+        />
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>选择其他参与讨论的AI角色 (至少选择1个)</label>
       <div class="participants-selector">
         <ParticipantCard
-          v-for="role in roles"
+          v-for="role in otherRoles"
           :key="role.id"
           :role="role"
           :selected="selectedParticipants.includes(role.id)"
@@ -239,29 +255,34 @@ onMounted(() => {
 
 <style scoped>
 .form-actions {
-  margin-top: 12px;
+  margin-top: 16px;
   display: flex;
   justify-content: flex-end;
 }
 
 .reset-btn {
-  background: none;
-  border: 1px solid #ddd;
-  color: #666;
-  padding: 8px 12px;
-  border-radius: 4px;
+  background: linear-gradient(135deg, #faf9f7 0%, #f0ebe5 100%);
+  border: 1px solid #e6ddd4;
+  color: #8b5a3c;
+  padding: 10px 16px;
+  border-radius: 10px;
   cursor: pointer;
   font-size: 14px;
-  transition: all 0.2s ease;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 4px rgba(139, 90, 60, 0.1);
 }
 
 .reset-btn:hover {
-  background: #f5f5f5;
-  border-color: #999;
-  color: #333;
+  background: linear-gradient(135deg, #f0ebe5 0%, #e6ddd4 100%);
+  border-color: #d4a574;
+  color: #5d4e37;
+  transform: translateY(-1px);
+  box-shadow: 0 3px 8px rgba(139, 90, 60, 0.15);
 }
 
 .reset-btn:active {
-  background: #e0e0e0;
+  background: linear-gradient(135deg, #e6ddd4 0%, #dac5b3 100%);
+  transform: translateY(0);
 }
 </style>
