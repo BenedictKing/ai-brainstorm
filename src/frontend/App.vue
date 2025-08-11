@@ -3,6 +3,13 @@
     <div class="header">
       <h1>🤖 AI 智能讨论平台</h1>
       <p>让多个AI模型围绕你的问题进行深度讨论</p>
+      
+      <!-- 调试按钮 -->
+      <div v-if="showDiscussion && !currentDiscussionId" style="margin-top: 10px;">
+        <el-button type="warning" size="small" @click="clearInvalidDiscussion">
+          清理无效状态
+        </el-button>
+      </div>
     </div>
 
     <div class="main-content">
@@ -23,13 +30,12 @@
 </template>
 
 <script setup>
-import { ref, provide, onMounted } from 'vue' // 引入 onMounted
+import { ref, provide, onMounted } from 'vue'
 import DiscussionForm from './components/DiscussionForm.vue'
 import DiscussionView from './components/DiscussionView.vue'
 import KnowledgePanel from './components/KnowledgePanel.vue'
-import { usePolling } from './composables/useWebSocket'
 import { useProviders } from './composables/useProviders'
-import { STORAGE_KEYS, loadFromStorage, removeFromStorage } from './utils/storage' // 引入 helpers
+import { STORAGE_KEYS, loadFromStorage, removeFromStorage } from './utils/storage'
 
 // 状态管理
 const showDiscussion = ref(false)
@@ -38,13 +44,9 @@ const currentDiscussionId = ref(null)
 const discussionTitle = ref('')
 
 // 组合式函数
-const { isPolling, startPolling, stopPolling } = usePolling()
 const { providers, loadProviders } = useProviders()
 
 // 提供全局状态
-provide('isPolling', isPolling)
-provide('startPolling', startPolling)
-provide('stopPolling', stopPolling)
 provide('providers', providers)
 
 // 初始化
@@ -69,6 +71,17 @@ const backToHome = () => {
   removeFromStorage(STORAGE_KEYS.ACTIVE_DISCUSSION_TITLE)
 }
 
+// 清理无效的讨论状态
+const clearInvalidDiscussion = () => {
+  console.log('🧹 清理无效的讨论状态')
+  showDiscussion.value = false
+  showKnowledge.value = false
+  currentDiscussionId.value = null
+  discussionTitle.value = ''
+  removeFromStorage(STORAGE_KEYS.ACTIVE_DISCUSSION_ID)
+  removeFromStorage(STORAGE_KEYS.ACTIVE_DISCUSSION_TITLE)
+}
+
 // 在组件挂载时检查并恢复讨论状态
 onMounted(() => {
   const activeId = loadFromStorage(STORAGE_KEYS.ACTIVE_DISCUSSION_ID)
@@ -77,6 +90,10 @@ onMounted(() => {
   if (activeId && activeTitle) {
     console.log(`🔄 Resuming active discussion: ${activeId}`)
     startDiscussion({ discussionId: activeId, title: activeTitle })
+  } else {
+    // 如果没有活跃讨论，确保显示表单
+    showDiscussion.value = false
+    showKnowledge.value = false
   }
 })
 </script>
