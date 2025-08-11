@@ -283,7 +283,7 @@ class AIBrainstormServer {
             participants: conversation.participants,
             currentRound: conversation.currentRound,
             maxRounds: conversation.maxRounds,
-            lastUpdated: conversation.lastUpdated,
+            lastUpdated: conversation.updatedAt,
           },
         });
       } catch (error: any) {

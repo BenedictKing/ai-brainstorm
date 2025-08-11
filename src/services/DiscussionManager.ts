@@ -76,6 +76,9 @@ export class DiscussionManager extends EventEmitter {
       participants: aiParticipants,
       createdAt: new Date(),
       updatedAt: new Date(),
+      status: 'active',
+      currentRound: 0,
+      maxRounds: 1, // 目前讨论会模式固定为1轮
       tags: ['discussion', 'panel-mode'],
     };
 
@@ -98,12 +101,16 @@ export class DiscussionManager extends EventEmitter {
       // 新的讨论会模式：先让支持者回答，然后其他角色进行思辨
       await this.runDiscussionRound(conversation, conversationId);
 
+      conversation.status = 'completed';
       this.emit('discussionCompleted', {
         conversationId,
         conversation,
         totalMessages: conversation.messages.length,
       });
     } catch (error) {
+      if (conversation) {
+        conversation.status = 'error';
+      }
       console.error('Discussion failed:', error);
       this.emit('discussionError', { conversationId, error });
     }
@@ -115,11 +122,12 @@ export class DiscussionManager extends EventEmitter {
     // 定义讨论顺序：支持者先发言，然后是其他角色
     const discussionOrder = this.getDiscussionOrder(activeParticipants);
 
+    conversation.currentRound = 1;
     this.emit('roundStarted', {
       conversationId,
       round: 1,
       maxRounds: 1,
-      participants: discussionOrder, // <-- CHANGE THIS LINE
+      participants: discussionOrder,
     });
 
     // 确保初次发言人成功发言

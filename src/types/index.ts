@@ -22,6 +22,9 @@ export interface Conversation {
   participants: AIParticipant[];
   createdAt: Date;
   updatedAt: Date;
+  status: 'active' | 'completed' | 'error';
+  currentRound: number;
+  maxRounds: number;
   tags?: string[];
 }
 
