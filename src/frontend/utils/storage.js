@@ -5,7 +5,9 @@ export const STORAGE_KEYS = {
   FORM_DATA: 'ai-brainstorm-form-data',
   SELECTED_PARTICIPANTS: 'ai-brainstorm-selected-participants',
   ROLE_MODEL_MAPPINGS: 'ai-brainstorm-role-model-mappings',
-  CLIENT_ID: 'brainstorm_client_id'
+  CLIENT_ID: 'brainstorm_client_id',
+  ACTIVE_DISCUSSION_ID: 'brainstorm_active_discussion_id',
+  ACTIVE_DISCUSSION_TITLE: 'brainstorm_active_discussion_title',
 };
 
 // 从localStorage加载数据
@@ -25,6 +27,15 @@ export const saveToStorage = (key, value) => {
     localStorage.setItem(key, JSON.stringify(value))
   } catch (error) {
     console.warn(`Failed to save ${key} to localStorage:`, error)
+  }
+}
+
+// 从localStorage移除数据
+export const removeFromStorage = (key) => {
+  try {
+    localStorage.removeItem(key)
+  } catch (error) {
+    console.warn(`Failed to remove ${key} from localStorage:`, error)
   }
 }
 

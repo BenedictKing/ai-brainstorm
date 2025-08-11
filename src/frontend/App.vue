@@ -23,12 +23,13 @@
 </template>
 
 <script setup>
-import { ref, provide } from 'vue';
+import { ref, provide, onMounted } from 'vue'; // 引入 onMounted
 import DiscussionForm from './components/DiscussionForm.vue';
 import DiscussionView from './components/DiscussionView.vue';
 import KnowledgePanel from './components/KnowledgePanel.vue';
 import { usePolling } from './composables/useWebSocket';
 import { useProviders } from './composables/useProviders';
+import { STORAGE_KEYS, loadFromStorage, removeFromStorage } from './utils/storage'; // 引入 helpers
 
 // 状态管理
 const showDiscussion = ref(false);
@@ -62,7 +63,22 @@ const backToHome = () => {
   showKnowledge.value = false;
   currentDiscussionId.value = null;
   discussionTitle.value = '';
+
+  // 清除 localStorage 中的活跃讨论状态
+  removeFromStorage(STORAGE_KEYS.ACTIVE_DISCUSSION_ID);
+  removeFromStorage(STORAGE_KEYS.ACTIVE_DISCUSSION_TITLE);
 };
+
+// 在组件挂载时检查并恢复讨论状态
+onMounted(() => {
+  const activeId = loadFromStorage(STORAGE_KEYS.ACTIVE_DISCUSSION_ID);
+  const activeTitle = loadFromStorage(STORAGE_KEYS.ACTIVE_DISCUSSION_TITLE);
+
+  if (activeId && activeTitle) {
+    console.log(`🔄 Resuming active discussion: ${activeId}`);
+    startDiscussion({ discussionId: activeId, title: activeTitle });
+  }
+});
 </script>
 
 <style scoped>

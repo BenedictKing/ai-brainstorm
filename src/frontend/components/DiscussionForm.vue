@@ -226,6 +226,10 @@ const handleStartDiscussion = async () => {
     const result = await response.json();
 
     if (result.success) {
+      // 保存活跃的讨论状态到 localStorage
+      saveToStorage(STORAGE_KEYS.ACTIVE_DISCUSSION_ID, result.data.conversationId);
+      saveToStorage(STORAGE_KEYS.ACTIVE_DISCUSSION_TITLE, form.value.question);
+      
       emit('start-discussion', {
         discussionId: result.data.conversationId,
         title: form.value.question,

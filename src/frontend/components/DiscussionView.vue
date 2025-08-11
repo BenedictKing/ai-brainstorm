@@ -75,61 +75,75 @@ const pollDiscussionStatus = async () => {
     
     const result = await response.json()
     if (result.success) {
-      const conversation = result.data
-      
+      const conversation = result.data;
+      const isFirstLoad = messages.value.length === 0;
+
       // 检查状态变化
       if (conversation.status !== discussionStatus.value) {
-        discussionStatus.value = conversation.status
+        discussionStatus.value = conversation.status;
         
         if (conversation.status === 'completed') {
-          isLoading.value = false
-          nextSpeaker.value = null
-          orderedParticipants.value = []
-          stopPolling()
+          isLoading.value = false;
+          nextSpeaker.value = null;
+          orderedParticipants.value = [];
+          stopPolling();
         }
       }
       
       // 检查新消息
       if (conversation.messages && conversation.messages.length > lastMessageCount.value) {
-        const newMessages = conversation.messages.slice(lastMessageCount.value)
+        // 如果是首次加载，先注入指示性消息
+        if (isFirstLoad && conversation.messages.length > 0) {
+          addRoundIndicator(conversation.currentRound, conversation.maxRounds);
+          addDiscussionOrder(conversation.participants.map(p => p.name));
+        }
+
+        const newMessages = conversation.messages.slice(lastMessageCount.value);
         newMessages.forEach(message => {
-          addMessage(message)
-        })
-        lastMessageCount.value = conversation.messages.length
+          addMessage(message);
+        });
+        lastMessageCount.value = conversation.messages.length;
       }
       
       // 更新参与者信息
       if (conversation.participants) {
-        orderedParticipants.value = conversation.participants
+        orderedParticipants.value = conversation.participants;
+      }
+
+      // 如果讨论未完成，loading状态取决于是否有下一个发言者
+      if (discussionStatus.value === 'active') {
+          // 暂时在轮询成功后，如果讨论仍在进行中，就假定loading结束，等待新消息触发
+          isLoading.value = false;
       }
     }
   } catch (error) {
-    console.error('❌ Failed to poll discussion status:', error)
+    console.error('❌ Failed to poll discussion status:', error);
+    isLoading.value = false; // 出错时停止加载
   }
-}
+};
 
 // 监听轮询状态变化
 watch([startPolling, isPolling], () => {
   if (startPolling && props.discussionId) {
-    setupPolling()
+    setupPolling();
   }
-}, { immediate: true })
+}, { immediate: true });
 
 // 设置轮询
 const setupPolling = () => {
-  console.log('🔄 Setting up polling for discussion:', props.discussionId)
+  console.log('🔄 Setting up polling for discussion:', props.discussionId);
   
   // 开始轮询，每2秒一次
-  startPolling(pollDiscussionStatus, 2000)
+  startPolling(pollDiscussionStatus, 2000);
   
-  console.log('✅ Polling set up successfully')
-}
+  console.log('✅ Polling set up successfully');
+};
 
 // 方法
 const addMessage = (message) => {
-  messages.value.push(message)
-  scrollToBottom()
-}
+  messages.value.push(message);
+  scrollToBottom();
+};
 
 const addRoundIndicator = (round, maxRounds) => {
   const indicator = {
@@ -137,10 +151,10 @@ const addRoundIndicator = (round, maxRounds) => {
     type: 'round-indicator',
     content: `第 ${round} 轮讨论 (共 ${maxRounds} 轮)`,
     timestamp: new Date()
-  }
-  messages.value.push(indicator)
-  scrollToBottom()
-}
+  };
+  messages.value.push(indicator);
+  scrollToBottom();
+};
 
 const addDiscussionOrder = (participantNames) => {
   const order = {
@@ -148,10 +162,10 @@ const addDiscussionOrder = (participantNames) => {
     type: 'discussion-order',
     content: participantNames.map((name, index) => `${index + 1}. ${name}`).join(' → '),
     timestamp: new Date()
-  }
-  messages.value.push(order)
-  scrollToBottom()
-}
+  };
+  messages.value.push(order);
+  scrollToBottom();
+};
 
 const addRetryIndicator = (retryData) => {
   const indicator = {
@@ -159,40 +173,41 @@ const addRetryIndicator = (retryData) => {
     type: 'retry-indicator',
     content: `${retryData.participantName} 正在重试中... (${retryData.attempt}/${retryData.maxAttempts}) - ${retryData.reason}`,
     timestamp: new Date()
-  }
-  messages.value.push(indicator)
-  scrollToBottom()
-}
+  };
+  messages.value.push(indicator);
+  scrollToBottom();
+};
 
 const scrollToBottom = () => {
   nextTick(() => {
     if (messagesContainer.value) {
-      messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight
+      messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight;
     }
-  })
-}
+  });
+};
 
 // 生命周期
 onMounted(() => {
-  console.log('📱 DiscussionView mounted, discussionId:', props.discussionId)
+  console.log('📱 DiscussionView mounted, discussionId:', props.discussionId);
   
-  // 初始化消息计数
-  lastMessageCount.value = 0
+  // 初始化时，立即进入加载状态
+  isLoading.value = true;
+  lastMessageCount.value = 0;
   
   // 开始轮询
   if (startPolling && props.discussionId) {
-    setupPolling()
+    setupPolling();
   }
-})
+});
 
 onUnmounted(() => {
-  console.log('📱 DiscussionView unmounted')
+  console.log('📱 DiscussionView unmounted');
   
   // 停止轮询
   if (stopPolling) {
-    stopPolling()
+    stopPolling();
   }
-})
+});
 </script>
 
 <style scoped>
