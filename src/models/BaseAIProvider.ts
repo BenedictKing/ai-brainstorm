@@ -35,19 +35,15 @@ export abstract class BaseAIProvider {
     const context = `${this.model.provider}-${this.model.name}`;
     
     return await withRetry(async () => {
+      // 移除在此处预置 system message 的逻辑
       const formattedMessages = this.formatMessages(messages);
-      if (systemPrompt) {
-        formattedMessages.unshift({
-          role: "system",
-          content: systemPrompt,
-        });
-      }
 
       // 开发模式下输出请求内容
       if (process.env.NODE_ENV === "development") {
         console.log(`\n🔵 [${this.model.provider}] Request:`, {
           model: this.model.name,
-          messages: formattedMessages.map((m) => ({
+          systemPrompt: systemPrompt, // Log the separate system prompt
+          messages: formattedMessages.map((m: any) => ({ // Use any type for flexibility
             role: m.role,
             content:
               m.content.substring(0, 500) +
@@ -65,7 +61,8 @@ export abstract class BaseAIProvider {
           console.log(`\n📡 [${this.model.provider}] Trying streaming request...`);
         }
         
-        response = await this.makeStreamRequest(formattedMessages);
+        // 将 systemPrompt 传递给 makeStreamRequest
+        response = await this.makeStreamRequest(formattedMessages, systemPrompt);
         parsedResponse = await this.handleStreamResponse(response);
         
         if (process.env.NODE_ENV === "development") {
@@ -75,11 +72,12 @@ export abstract class BaseAIProvider {
         // 流式失败，回退到非流式（如果启用）
         if (config.aiRequest.enableStreamFallback) {
           if (process.env.NODE_ENV === "development") {
-            console.log(`\n⚠️  [${this.model.provider}] Streaming failed, falling back to non-streaming:`, 
+            console.log(`\n⚠️  [${this.model.provider}] Streaming failed, falling back to non-streaming:`,
               streamError.message);
           }
           
-          response = await this.makeRequest(formattedMessages);
+          // 将 systemPrompt 传递给 makeRequest
+          response = await this.makeRequest(formattedMessages, systemPrompt);
           parsedResponse = this.parseResponse(response.data);
           
           if (process.env.NODE_ENV === "development") {
@@ -170,8 +168,8 @@ export abstract class BaseAIProvider {
     });
   }
 
-  protected abstract makeRequest(messages: any[]): Promise<any>;
-  protected abstract makeStreamRequest(messages: any[]): Promise<any>;
+  protected abstract makeRequest(messages: any[], systemPrompt?: string): Promise<any>;
+  protected abstract makeStreamRequest(messages: any[], systemPrompt?: string): Promise<any>;
 
   getModel(): AIModel {
     return this.model;
