@@ -16,6 +16,7 @@ class AIBrainstormServer {
   private wss: WebSocketServer;
   private discussionManager: DiscussionManager;
   private knowledgeManager: KnowledgeManager;
+  private publicPath: string; // 新增成员变量
 
   constructor() {
     this.app = express();
@@ -40,13 +41,13 @@ class AIBrainstormServer {
     this.app.use(cors());
     this.app.use(express.json());
     
-    // 使用相对于当前工作目录的路径
-    const publicPath = process.env.NODE_ENV === 'production' 
-      ? path.join(__dirname, 'public')  // 构建后public目录被复制到dist/public
-      : 'public';  // 开发环境直接使用项目根目录的public
-    
-    console.log(`📁 Serving static files from: ${path.resolve(publicPath)}`);
-    this.app.use(express.static(publicPath));
+    // 设置并保存静态目录路径（生产环境指向 dist/public，开发指向项目根 public）
+    this.publicPath = process.env.NODE_ENV === 'production'
+      ? path.join(__dirname, 'public')   // __dirname 在 dist 中 -> dist/public
+      : path.resolve(process.cwd(), 'public'); // 开发时使用项目根的 public
+
+    console.log(`📁 Serving static files from: ${path.resolve(this.publicPath)}`);
+    this.app.use(express.static(this.publicPath));
   }
 
   private setupRoutes(): void {
@@ -271,7 +272,7 @@ class AIBrainstormServer {
 
     // SPA fallback route
     this.app.get('*', (req: Request, res: Response) => {
-      res.sendFile(path.resolve(process.cwd(), 'public', 'index.html'), err => {
+      res.sendFile(path.join(this.publicPath, 'index.html'), (err) => {
         if (err) res.status(404).send('index.html 不存在');
       });
     });
