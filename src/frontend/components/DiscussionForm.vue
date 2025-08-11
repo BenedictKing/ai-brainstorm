@@ -299,4 +299,18 @@ onMounted(() => {
   gap: 16px;
   margin-top: 8px;
 }
+
+@media (max-width: 1200px) {
+  .first-speaker-section,
+  .participants-selector {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .first-speaker-section,
+  .participants-selector {
+    grid-template-columns: 1fr;
+  }
+}
 </style>

@@ -163,8 +163,19 @@ export abstract class BaseAIProvider {
   }
 
   // 在文件末尾添加新的私有静态方法
+  private static combineURLs(baseURL: string, relativeURL: string): string {
+    // 移除 baseURL 末尾的斜杠和 relativeURL 开头的斜杠，然后用一个斜杠连接它们
+    return baseURL.replace(/\/+$/, '') + '/' + relativeURL.replace(/^\/+/, '')
+  }
+
+  // 在文件末尾添加新的私有静态方法
   private static generateCurlCommand(url: string, method: string, headers: Record<string, any>, body: Record<string, any>): string {
     const maskedHeaders = { ...headers };
+    
+    // 自动添加 Content-Type 头（如果不存在）
+    if (!maskedHeaders['Content-Type'] && !maskedHeaders['content-type']) {
+      maskedHeaders['Content-Type'] = 'application/json';
+    }
     
     // 屏蔽敏感信息
     if (maskedHeaders['Authorization']) {

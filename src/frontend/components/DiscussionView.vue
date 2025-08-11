@@ -23,6 +23,7 @@
 
 <script setup>
 import { ref, computed, inject, onMounted, onUnmounted, nextTick, watch } from 'vue'
+import { ElMessage } from 'element-plus'
 import MessageItem from './MessageItem.vue'
 import LoadingIndicator from './LoadingIndicator.vue'
 import { getClientId } from '../utils/storage.js'
@@ -64,6 +65,15 @@ const pollDiscussionStatus = async () => {
       },
     })
     if (!response.ok) {
+      if (response.status === 404) {
+        // 讨论不存在，可能服务器重启了
+        console.warn('⚠️ Discussion not found, possibly server restarted')
+        ElMessage.warning('讨论数据不存在，可能服务器已重启。将返回首页。')
+        setTimeout(() => {
+          emit('back-to-home')
+        }, 2000)
+        return
+      }
       throw new Error(`HTTP error! status: ${response.status}`)
     }
 

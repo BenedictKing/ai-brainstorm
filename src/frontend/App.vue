@@ -30,7 +30,7 @@
 </template>
 
 <script setup>
-import { ref, provide, onMounted } from 'vue'
+import { ref, provide, onMounted, onBeforeUnmount } from 'vue'
 import DiscussionForm from './components/DiscussionForm.vue'
 import DiscussionView from './components/DiscussionView.vue'
 import KnowledgePanel from './components/KnowledgePanel.vue'
@@ -43,11 +43,43 @@ const showKnowledge = ref(false)
 const currentDiscussionId = ref(null)
 const discussionTitle = ref('')
 
+// 轮询状态
+const isPolling = ref(false)
+let pollingInterval = null
+
 // 组合式函数
 const { providers, loadProviders } = useProviders()
 
-// 提供全局状态
+// 轮询函数
+const startPolling = (pollingFunction, intervalMs = 2000) => {
+  if (isPolling.value) {
+    stopPolling()
+  }
+  
+  console.log('🔄 Starting polling with interval:', intervalMs)
+  isPolling.value = true
+  
+  // 立即执行一次
+  pollingFunction()
+  
+  // 设置定时轮询
+  pollingInterval = setInterval(pollingFunction, intervalMs)
+}
+
+const stopPolling = () => {
+  if (pollingInterval) {
+    console.log('⏹️ Stopping polling')
+    clearInterval(pollingInterval)
+    pollingInterval = null
+    isPolling.value = false
+  }
+}
+
+// 提供全局状态和函数
 provide('providers', providers)
+provide('startPolling', startPolling)
+provide('stopPolling', stopPolling)
+provide('isPolling', isPolling)
 
 // 初始化
 loadProviders()
@@ -61,6 +93,9 @@ const startDiscussion = ({ discussionId, title }) => {
 }
 
 const backToHome = () => {
+  // 停止轮询
+  stopPolling()
+  
   showDiscussion.value = false
   showKnowledge.value = false
   currentDiscussionId.value = null
@@ -95,6 +130,11 @@ onMounted(() => {
     showDiscussion.value = false
     showKnowledge.value = false
   }
+})
+
+// 在组件卸载时清理轮询
+onBeforeUnmount(() => {
+  stopPolling()
 })
 </script>
 

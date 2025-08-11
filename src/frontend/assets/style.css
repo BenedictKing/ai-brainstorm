@@ -203,10 +203,13 @@ body {
 }
 
 .model-option {
-  padding: 10px 14px;
+  padding: 4px 8px;
   cursor: pointer;
   border-bottom: 1px solid #f8f6f3;
   transition: background-color 0.2s;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .model-option:last-child {
@@ -229,12 +232,14 @@ body {
 .provider-name {
   font-weight: 600;
   color: #5d4e37;
+  font-size: 12px;
 }
 
 .model-name {
   font-size: 10px;
   color: #8b7355;
-  margin-top: 2px;
+  margin-top: 0;
+  text-align: right;
 }
 
 .start-btn {
@@ -528,6 +533,12 @@ body {
   border: 1px solid rgba(212, 165, 116, 0.2);
   color: #8b5a3c;
   font-weight: 500;
+}
+
+@media (max-width: 1200px) {
+  .participants-selector {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
 @media (max-width: 1024px) {

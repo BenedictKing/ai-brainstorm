@@ -19,7 +19,15 @@ export class OpenAIProvider extends BaseAIProvider {
     super(apiKey, baseUrl, aiModel)
     this.modelName = model
     this.baseUrl = baseUrl
-    this.openai = new OpenAI({ apiKey, baseURL: baseUrl })
+    this.openai = new OpenAI({
+      apiKey,
+      baseURL: baseUrl,
+      defaultHeaders: {
+        'User-Agent':
+          'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        Accept: 'application/json',
+      },
+    })
   }
 
   protected setupAuth(apiKey: string): void {
@@ -82,7 +90,6 @@ export class OpenAIProvider extends BaseAIProvider {
       max_tokens: 16384,
       stream: true,
     }
-    console.log('body', body)
 
     // 日志记录
     const url = (this.constructor as any).combineURLs(this.baseUrl, endpoint)

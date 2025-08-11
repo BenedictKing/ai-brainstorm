@@ -49,7 +49,7 @@ export const config = {
     claude: {
       apiKey: process.env.CLAUDE_API_KEY,
       baseUrl: process.env.CLAUDE_BASE_URL || 'https://api.anthropic.com/v1',
-      model: process.env.CLAUDE_MODEL || 'claude-4-sonnet',
+      model: process.env.CLAUDE_MODEL || 'claude-3-5-sonnet-20241022',
       format: (process.env.CLAUDE_FORMAT as 'openai' | 'claude' | 'gemini') || 'claude',
       enabled: !!process.env.CLAUDE_API_KEY,
       maxTokens: parseInt(process.env.CLAUDE_MAX_TOKENS || '16384'),
