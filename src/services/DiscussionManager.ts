@@ -128,13 +128,40 @@ export class DiscussionManager extends EventEmitter {
       participants: discussionOrder.map(p => p.name)
     });
 
-    // 按顺序让每个参与者发言
-    for (let i = 0; i < discussionOrder.length; i++) {
+    // 确保初次发言人成功发言
+    const firstSpeaker = discussionOrder[0];
+    if (!firstSpeaker) {
+      throw new Error('No participants available for discussion');
+    }
+
+    // 处理初次发言人的发言，包含重试机制
+    const firstResponse = await this.getFirstSpeakerResponse(conversation, firstSpeaker, conversationId);
+    if (!firstResponse || firstResponse.metadata?.isErrorMessage) {
+      throw new Error('First speaker failed to provide a valid response');
+    }
+
+    conversation.messages.push(firstResponse);
+    conversation.updatedAt = new Date();
+    
+    if (this.config.enableRealTimeUpdates) {
+      this.emit('messageReceived', { 
+        conversationId, 
+        message: firstResponse,
+        participantIndex: 0,
+        totalParticipants: discussionOrder.length
+      });
+    }
+
+    // 给其他参与者时间处理，模拟真实讨论节奏
+    await new Promise(resolve => setTimeout(resolve, 2000));
+
+    // 处理其他参与者的发言
+    for (let i = 1; i < discussionOrder.length; i++) {
       const participant = discussionOrder[i];
       
       try {
         // 构建针对当前讨论状态的提示词
-        const contextualPrompt = this.buildContextualPrompt(conversation, participant, i === 0);
+        const contextualPrompt = this.buildContextualPrompt(conversation, participant, false);
         
         const response = await this.getParticipantResponse(
           conversation, 
@@ -142,7 +169,7 @@ export class DiscussionManager extends EventEmitter {
           contextualPrompt
         );
         
-        if (response) {
+        if (response && !response.metadata?.isErrorMessage) {
           conversation.messages.push(response);
           conversation.updatedAt = new Date();
           
@@ -162,8 +189,78 @@ export class DiscussionManager extends EventEmitter {
         }
       } catch (error) {
         console.error(`Participant ${participant.name} failed to respond:`, error);
+        // 其他参与者失败不会中断整个讨论，只是记录错误
       }
     }
+  }
+
+  private async getFirstSpeakerResponse(
+    conversation: Conversation, 
+    participant: AIParticipant,
+    conversationId: string
+  ): Promise<Message | null> {
+    const maxAttempts = 3;
+    let attempt = 0;
+
+    while (attempt < maxAttempts) {
+      attempt++;
+      console.log(`🎤 First speaker ${participant.name} attempt ${attempt}/${maxAttempts}`);
+
+      try {
+        // 构建初次发言人的提示词
+        const contextualPrompt = this.buildContextualPrompt(conversation, participant, true);
+        
+        const response = await this.getParticipantResponse(
+          conversation, 
+          participant, 
+          contextualPrompt
+        );
+
+        // 检查回应是否有效（非空且不是错误消息）
+        if (response && 
+            !response.metadata?.isErrorMessage && 
+            response.content.trim().length > 0 &&
+            !response.content.includes('暂时无法响应')) {
+          
+          console.log(`✅ First speaker ${participant.name} provided valid response`);
+          return response;
+        } else {
+          console.warn(`⚠️ First speaker ${participant.name} provided invalid response, attempt ${attempt}/${maxAttempts}`);
+          
+          // 发出重试通知
+          if (this.config.enableRealTimeUpdates) {
+            this.emit('firstSpeakerRetry', {
+              conversationId,
+              participantName: participant.name,
+              attempt,
+              maxAttempts,
+              reason: response?.metadata?.isErrorMessage ? 'Error response' : 'Empty or invalid response'
+            });
+          }
+        }
+      } catch (error) {
+        console.error(`❌ First speaker ${participant.name} attempt ${attempt} failed:`, error);
+        
+        // 发出重试通知
+        if (this.config.enableRealTimeUpdates) {
+          this.emit('firstSpeakerRetry', {
+            conversationId,
+            participantName: participant.name,
+            attempt,
+            maxAttempts,
+            reason: error instanceof Error ? error.message : 'Unknown error'
+          });
+        }
+      }
+
+      // 如果不是最后一次尝试，等待一段时间再重试
+      if (attempt < maxAttempts) {
+        await new Promise(resolve => setTimeout(resolve, 3000));
+      }
+    }
+
+    console.error(`❌ First speaker ${participant.name} failed after ${maxAttempts} attempts`);
+    return null;
   }
 
   private getDiscussionOrder(participants: AIParticipant[]): AIParticipant[] {
