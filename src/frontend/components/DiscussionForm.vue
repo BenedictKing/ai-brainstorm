@@ -36,6 +36,22 @@
     </div>
 
     <div class="form-group">
+      <label>初次发言人 (自动选择)</label>
+      <div class="first-speaker-section">
+        <ParticipantCard
+          v-if="firstSpeakerRole"
+          :key="firstSpeakerRole.id"
+          :role="firstSpeakerRole"
+          :selected="true"
+          :providers="providers"
+          :initial-provider="roleModelMappings[firstSpeakerRole.id]"
+          :disabled="true"
+          @update-model="updateRoleModel"
+        />
+      </div>
+    </div>
+
+    <div class="form-group">
       <label>选择其他参与讨论的AI角色 (至少选择1个)</label>
       <div class="participants-selector">
         <ParticipantCard
@@ -143,8 +159,12 @@ const roles = ref([
 ])
 
 // 计算属性
+const firstSpeakerRole = computed(() => roles.value.find(r => r.id === 'first_speaker'))
+const otherRoles = computed(() => roles.value.filter(r => r.id !== 'first_speaker'))
+
 const canStartDiscussion = computed(() => {
-  return form.value.question.trim() && selectedParticipants.value.length >= 2
+  // 需要至少1个其他参与者
+  return form.value.question.trim() && selectedParticipants.value.length >= 1
 })
 
 // 监听数据变化并保存到localStorage
@@ -181,6 +201,9 @@ const updateStartButton = () => {
 const handleStartDiscussion = async () => {
   if (!canStartDiscussion.value) return
 
+  // 确保 first_speaker 包含在内
+  const allParticipants = [firstSpeakerRole.value.id, ...selectedParticipants.value]
+
   try {
     const response = await fetch('/api/discussions', {
       method: 'POST',
@@ -190,7 +213,7 @@ const handleStartDiscussion = async () => {
       body: JSON.stringify({
         question: form.value.question,
         context: form.value.context || undefined,
-        participants: selectedParticipants.value
+        participants: allParticipants
       })
     })
 
@@ -216,7 +239,8 @@ const handleResetCache = () => {
     if (success) {
       // 重置为默认值
       form.value = { question: '', context: '' }
-      selectedParticipants.value = ['critic', 'supporter', 'synthesizer']
+      // 默认选择其他角色中的 critic 和 supporter
+      selectedParticipants.value = ['critic', 'supporter']
       roleModelMappings.value = {}
       
       // 重新初始化角色模型映射
@@ -236,7 +260,10 @@ onMounted(() => {
   // 如果localStorage中没有选中的参与者，设置默认值
   if (selectedParticipants.value.length === 0) {
     const defaultRoles = ['critic', 'supporter', 'synthesizer']
-    selectedParticipants.value = [...defaultRoles]
+    selectedParticipants.value = defaultRoles.filter(id => id !== 'first_speaker')
+  } else {
+    // 确保 'first_speaker' 不在用户可选的参与者列表中
+    selectedParticipants.value = selectedParticipants.value.filter(id => id !== 'first_speaker')
   }
   
   // 初始化角色模型映射（仅为未设置的角色）
