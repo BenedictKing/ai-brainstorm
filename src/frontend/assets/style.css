@@ -101,18 +101,18 @@ body {
 }
 
 .participant-card:hover {
-    border-color: #0ea5e9;
+    border-color: #8b5cf6;
     transform: translateY(-2px);
-    box-shadow: 0 8px 25px rgba(14, 165, 233, 0.15);
+    box-shadow: 0 8px 25px rgba(139, 92, 246, 0.15);
 }
 
 .participant-card.selected {
-    border-color: #0ea5e9;
-    background: linear-gradient(135deg, rgba(14, 165, 233, 0.1) 0%, rgba(56, 189, 248, 0.05) 100%);
+    border-color: #8b5cf6;
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(56, 189, 248, 0.05) 100%);
 }
 
 .participant-card h4 {
-    color: #0ea5e9;
+    color: #8b5cf6;
     margin-bottom: 5px;
 }
 
@@ -126,7 +126,7 @@ body {
     position: absolute;
     top: 10px;
     right: 10px;
-    background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
+    background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%);
     color: white;
     padding: 2px 8px;
     border-radius: 12px;
