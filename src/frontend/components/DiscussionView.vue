@@ -226,6 +226,7 @@ onUnmounted(() => {
         type: 'unsubscribe_discussion',
         conversationId: props.discussionId
       }))
+    }
   }
 })
 </script>
