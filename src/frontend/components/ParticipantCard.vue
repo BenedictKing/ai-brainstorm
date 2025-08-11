@@ -78,6 +78,7 @@ const currentModelDisplay = computed(() => {
 
 // 方法
 const handleCardClick = () => {
+  if (props.disabled) return
   emit('toggle', props.role.id)
 }
 
@@ -114,3 +115,17 @@ onUnmounted(() => {
   document.removeEventListener('click', handleClickOutside)
 })
 </script>
+
+<style scoped>
+/* At the end of the file, add styles for the disabled state */
+.participant-card.disabled {
+  cursor: not-allowed;
+  opacity: 0.8;
+}
+
+.participant-card.disabled:hover {
+  transform: none;
+  border-color: #e6ddd4; /* Use default border color from assets/style.css */
+  box-shadow: none;
+}
+</style>
