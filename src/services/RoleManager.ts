@@ -1,5 +1,6 @@
 import { AIParticipant } from '../types/index.js'
 import { v4 as uuidv4 } from 'uuid'
+import { AIProviderFactory } from '../models/index.js'
 
 export interface RoleTemplate {
   id: string
@@ -89,40 +90,51 @@ export class RoleManager {
     return this.predefinedRoles.filter((role) => role.tags.some((t) => t.includes(tag)))
   }
 
-  static createParticipant(roleId: string, modelProvider: string, name?: string): AIParticipant {
+  static createParticipant(roleId: string, providerName: string, name?: string): AIParticipant {
     const role = this.getRoleById(roleId)
     if (!role) {
       throw new Error(`Role not found: ${roleId}`)
     }
 
+    // 从 ProviderFactory 获取模型配置
+    const providerConfig = AIProviderFactory.getProviderConfig(providerName)
+    if (!providerConfig) {
+      throw new Error(`Provider config not found for: ${providerName}`)
+    }
+
     return {
       id: uuidv4(),
-      roleId, // Add this line
+      roleId,
       name: name || role.name,
       role: role.name,
       model: {
-        id: modelProvider,
-        name: modelProvider,
-        provider: modelProvider as any,
-        maxTokens: 4000,
-        supportedFeatures: [],
+        id: providerConfig.model, // 使用配置中的模型ID
+        name: `${providerName.charAt(0).toUpperCase() + providerName.slice(1)} (${providerConfig.model})`, // 创建显示名称
+        provider: providerName as any, // 确保使用 providerName 作为提供商ID
+        maxTokens: providerConfig.maxTokens || 4000, // 从配置中获取或使用默认值
+        supportedFeatures: [], // 暂时留空
       },
       systemPrompt: role.systemPrompt,
       isActive: true,
     }
   }
 
-  static createCustomParticipant(name: string, systemPrompt: string, modelProvider: string): AIParticipant {
+  static createCustomParticipant(name: string, systemPrompt: string, providerName: string): AIParticipant {
+    // 对于自定义参与者，如果没有具体配置，可以使用默认值
+    const providerConfig = AIProviderFactory.getProviderConfig(providerName);
+    const modelId = providerConfig?.model || 'custom-model';
+    const modelNameDisplay = providerConfig ? `${providerName.charAt(0).toUpperCase() + providerName.slice(1)} (${modelId})` : `${providerName} (${modelId})`;
+
     return {
       id: uuidv4(),
-      roleId: 'custom', // Add this line
+      roleId: 'custom',
       name,
       role: name,
       model: {
-        id: modelProvider,
-        name: modelProvider,
-        provider: modelProvider as any,
-        maxTokens: 4000,
+        id: modelId,
+        name: modelNameDisplay,
+        provider: providerName as any,
+        maxTokens: providerConfig?.maxTokens || 4000,
         supportedFeatures: [],
       },
       systemPrompt,

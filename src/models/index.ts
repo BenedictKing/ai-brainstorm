@@ -42,6 +42,10 @@ export class AIProviderFactory {
         provider = new GeminiProvider(providerConfig.apiKey, providerConfig.model, providerConfig.baseUrl, providerName)
         break
 
+      case 'grok': // 添加 Grok 提供商的创建逻辑
+        provider = new GrokProvider(providerConfig.apiKey, providerConfig.model, providerConfig.baseUrl, providerName)
+        break
+
       default:
         throw new Error(`Unsupported provider format: ${providerConfig.format} for provider: ${providerName}`)
     }

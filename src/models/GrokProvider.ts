@@ -5,19 +5,19 @@ import OpenAI from 'openai'
 export class GrokProvider extends BaseAIProvider {
   private grok: OpenAI
 
-  constructor(apiKey: string, model = 'grok-beta') {
+  constructor(apiKey: string, model: string, baseUrl: string, providerName: string) {
     const aiModel: AIModel = {
-      id: 'grok-beta',
-      name: 'Grok Beta',
-      provider: 'grok',
-      maxTokens: 16384,
+      id: `${providerName}-${model}`, // 使用传入的 model 和 providerName
+      name: `${providerName.charAt(0).toUpperCase() + providerName.slice(1)} (${model})`, // 使用传入的 model 和 providerName
+      provider: providerName as 'grok', // 使用传入的 providerName
+      maxTokens: 16384, // 可以考虑从配置中获取
       supportedFeatures: ['chat', 'reasoning', 'humor', 'real-time'],
     }
 
-    super(apiKey, 'https://api.x.ai/v1', aiModel)
+    super(apiKey, baseUrl, aiModel) // 使用传入的 baseUrl
     this.grok = new OpenAI({
       apiKey: apiKey,
-      baseURL: 'https://api.x.ai/v1',
+      baseURL: baseUrl, // 使用传入的 baseUrl
     })
   }
 
@@ -49,7 +49,7 @@ export class GrokProvider extends BaseAIProvider {
     const finalMessages = systemPrompt ? [{ role: 'system', content: systemPrompt }, ...messages] : messages
 
     const completion = await this.grok.chat.completions.create({
-      model: 'grok-beta',
+      model: 'grok-1.5-sonnet', // 修正为固定的 Grok 模型名称
       messages: finalMessages,
       temperature: 0.7,
       max_tokens: 16384,
@@ -63,7 +63,7 @@ export class GrokProvider extends BaseAIProvider {
     const finalMessages = systemPrompt ? [{ role: 'system', content: systemPrompt }, ...messages] : messages
 
     const stream = await this.grok.chat.completions.create({
-      model: 'grok-beta',
+      model: 'grok-1.5-sonnet', // 修正为固定的 Grok 模型名称
       messages: finalMessages,
       temperature: 0.7,
       max_tokens: 16384,

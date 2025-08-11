@@ -8,15 +8,15 @@ export class ClaudeProvider extends BaseAIProvider {
 
   constructor(
     apiKey: string,
-    model = 'claude-3-5-sonnet-20241022',
+    model: string, // 确保接收 model 参数
     baseUrl = 'https://api.anthropic.com/v1',
-    providerName = 'claude'
+    providerName: string // 确保接收 providerName
   ) {
     const aiModel: AIModel = {
-      id: `${providerName}-${model}`,
-      name: `${providerName.charAt(0).toUpperCase() + providerName.slice(1)} (${model})`,
-      provider: 'claude',
-      maxTokens: 200000,
+      id: `${providerName}-${model}`, // 使用传入的 model 和 providerName
+      name: `${providerName.charAt(0).toUpperCase() + providerName.slice(1)} (${model})`, // 使用传入的 model 和 providerName
+      provider: providerName as 'claude', // 使用传入的 providerName
+      maxTokens: 200000, // 可以考虑从配置中获取
       supportedFeatures: ['chat', 'reasoning', 'analysis', 'code'],
     }
 

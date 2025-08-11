@@ -28,7 +28,7 @@ export interface ProviderConfig {
   apiKey?: string
   baseUrl: string
   model: string
-  format: 'openai' | 'claude' | 'gemini'
+  format: 'openai' | 'claude' | 'gemini' | 'grok'
   enabled?: boolean
 }
 
@@ -61,8 +61,8 @@ export const config = {
     grok: {
       apiKey: process.env.GROK_API_KEY,
       baseUrl: process.env.GROK_BASE_URL || 'https://api.x.ai/v1',
-      model: process.env.GROK_MODEL || 'grok-beta',
-      format: (process.env.GROK_FORMAT as 'openai' | 'claude' | 'gemini') || 'openai',
+      model: process.env.GROK_MODEL || 'grok-1.5-sonnet', // 修正为实际模型名
+      format: (process.env.GROK_FORMAT as 'openai' | 'claude' | 'gemini' | 'grok') || 'grok', // 修正 format
       enabled: !!process.env.GROK_API_KEY,
     },
     // 支持自定义提供商
