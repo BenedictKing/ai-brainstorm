@@ -1,14 +1,18 @@
 import { BaseAIProvider } from './BaseAIProvider.js'
 import { Message, AIModel } from '../types/index.js'
-import { BaseAIProvider } from './BaseAIProvider.js'
-import { Message, AIModel } from '../types/index.js'
 import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from '@google/generative-ai' // 恢复导入
 
 export class GeminiProvider extends BaseAIProvider {
   private modelName: string
-  private genAI: GoogleGenerativeAI // 恢复SDK实例
+  private genAI: GoogleGenerativeAI
+  private baseUrl: string
 
-  constructor(apiKey: string, model = 'gemini-1.5-pro', baseUrl = 'https://generativelanguage.googleapis.com/v1beta', providerName = 'gemini') {
+  constructor(
+    apiKey: string,
+    model = 'gemini-1.5-pro',
+    baseUrl = 'https://generativelanguage.googleapis.com/v1beta',
+    providerName = 'gemini'
+  ) {
     const aiModel: AIModel = {
       id: `${providerName}-${model}`,
       name: `${providerName.charAt(0).toUpperCase() + providerName.slice(1)} (${model})`,
@@ -19,7 +23,8 @@ export class GeminiProvider extends BaseAIProvider {
 
     super(apiKey, baseUrl, aiModel)
     this.modelName = model
-    this.genAI = new GoogleGenerativeAI(apiKey) // 初始化SDK
+    this.baseUrl = baseUrl
+    this.genAI = new GoogleGenerativeAI(apiKey)
   }
 
   protected setupAuth(apiKey: string): void {
@@ -77,11 +82,25 @@ export class GeminiProvider extends BaseAIProvider {
     }
 
     // 日志记录
-    const url = new URL(`${endpoint}?key=[REDACTED]`, this.client.defaults.baseURL).href
-    console.log(`\n\n${(this.constructor as any).generateCurlCommand(url, 'POST', { /* no headers for Gemini API Key in URL */ }, body)}\n\n`)
+    const url = new URL(`${(this.constructor as any).combineURLs(this.baseUrl, endpoint)}?key=[REDACTED]`).href
+    console.log(
+      `\n\n${(this.constructor as any).generateCurlCommand(
+        url,
+        'POST',
+        {
+          /* no headers for Gemini API Key in URL */
+        },
+        body
+      )}\n\n`
+    )
 
     // 使用SDK执行
-    const model = this.genAI.getGenerativeModel({ model: this.modelName, systemInstruction: systemPrompt ? { parts: [{ text: systemPrompt }] } : undefined })
+    const model = this.genAI.getGenerativeModel({
+      model: this.modelName,
+      systemInstruction: systemPrompt 
+        ? { role: 'system', parts: [{ text: systemPrompt }] } 
+        : undefined,
+    })
     const result = await model.generateContent({ contents: body.contents, generationConfig: body.generationConfig })
     return { data: result.response }
   }
@@ -98,12 +117,29 @@ export class GeminiProvider extends BaseAIProvider {
     }
 
     // 日志记录
-    const url = new URL(`${endpoint}?key=[REDACTED]`, this.client.defaults.baseURL).href
-    console.log(`\n\n${(this.constructor as any).generateCurlCommand(url, 'POST', { /* no headers for Gemini API Key in URL */ }, body)}\n\n`)
+    const url = new URL(`${(this.constructor as any).combineURLs(this.baseUrl, endpoint)}?key=[REDACTED]`).href
+    console.log(
+      `\n\n${(this.constructor as any).generateCurlCommand(
+        url,
+        'POST',
+        {
+          /* no headers for Gemini API Key in URL */
+        },
+        body
+      )}\n\n`
+    )
 
     // 使用SDK执行
-    const model = this.genAI.getGenerativeModel({ model: this.modelName, systemInstruction: systemPrompt ? { parts: [{ text: systemPrompt }] } : undefined })
-    const result = await model.generateContentStream({ contents: body.contents, generationConfig: body.generationConfig })
+    const model = this.genAI.getGenerativeModel({
+      model: this.modelName,
+      systemInstruction: systemPrompt 
+        ? { role: 'system', parts: [{ text: systemPrompt }] } 
+        : undefined,
+    })
+    const result = await model.generateContentStream({
+      contents: body.contents,
+      generationConfig: body.generationConfig,
+    })
     return { data: result.stream }
   }
 

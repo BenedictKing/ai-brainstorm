@@ -1,12 +1,11 @@
 import { BaseAIProvider } from './BaseAIProvider.js'
 import { Message, AIModel } from '../types/index.js'
-import { BaseAIProvider } from './BaseAIProvider.js'
-import { Message, AIModel } from '../types/index.js'
 import Anthropic from '@anthropic-ai/sdk' // 恢复导入
 
 export class ClaudeProvider extends BaseAIProvider {
   private modelName: string
-  private anthropic: Anthropic // 恢复SDK实例
+  private anthropic: Anthropic
+  private baseUrl: string
 
   constructor(apiKey: string, model: string, baseUrl = 'https://api.anthropic.com/v1', providerName: string) {
     const aiModel: AIModel = {
@@ -19,7 +18,8 @@ export class ClaudeProvider extends BaseAIProvider {
 
     super(apiKey, baseUrl, aiModel)
     this.modelName = model
-    this.anthropic = new Anthropic({ apiKey, baseURL: baseUrl }) // 初始化SDK
+    this.baseUrl = baseUrl
+    this.anthropic = new Anthropic({ apiKey, baseURL: baseUrl })
   }
 
   protected setupAuth(apiKey: string): void {
@@ -62,8 +62,15 @@ export class ClaudeProvider extends BaseAIProvider {
     }
 
     // 日志记录
-    const url = new URL(endpoint, this.client.defaults.baseURL).href
-    console.log(`\n\n${(this.constructor as any).generateCurlCommand(url, 'POST', { 'x-api-key': this.apiKey, 'anthropic-version': '2023-06-01' }, body)}\n\n`)
+    const url = (this.constructor as any).combineURLs(this.baseUrl, endpoint)
+    console.log(
+      `\n\n${(this.constructor as any).generateCurlCommand(
+        url,
+        'POST',
+        { 'x-api-key': this.apiKey, 'anthropic-version': '2023-06-01' },
+        body
+      )}\n\n`
+    )
 
     // 使用SDK执行
     const completion = await this.anthropic.messages.create(body)
@@ -82,8 +89,15 @@ export class ClaudeProvider extends BaseAIProvider {
     }
 
     // 日志记录
-    const url = new URL(endpoint, this.client.defaults.baseURL).href
-    console.log(`\n\n${(this.constructor as any).generateCurlCommand(url, 'POST', { 'x-api-key': this.apiKey, 'anthropic-version': '2023-06-01' }, body)}\n\n`)
+    const url = (this.constructor as any).combineURLs(this.baseUrl, endpoint)
+    console.log(
+      `\n\n${(this.constructor as any).generateCurlCommand(
+        url,
+        'POST',
+        { 'x-api-key': this.apiKey, 'anthropic-version': '2023-06-01' },
+        body
+      )}\n\n`
+    )
 
     // 使用SDK执行
     const stream = await this.anthropic.messages.create(body)

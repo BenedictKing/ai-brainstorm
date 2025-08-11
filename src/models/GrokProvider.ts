@@ -4,6 +4,7 @@ import OpenAI from 'openai'
 
 export class GrokProvider extends BaseAIProvider {
   private grok: OpenAI
+  private baseUrl: string
 
   constructor(apiKey: string, model: string, baseUrl: string, providerName: string) {
     const aiModel: AIModel = {
@@ -15,6 +16,7 @@ export class GrokProvider extends BaseAIProvider {
     }
 
     super(apiKey, baseUrl, aiModel) // 使用传入的 baseUrl
+    this.baseUrl = baseUrl
     this.grok = new OpenAI({
       apiKey: apiKey,
       baseURL: baseUrl, // 使用传入的 baseUrl
@@ -57,7 +59,7 @@ export class GrokProvider extends BaseAIProvider {
     }
 
     // 日志记录
-    const url = new URL(endpoint, this.client.defaults.baseURL).href
+    const url = (this.constructor as any).combineURLs(this.baseUrl, endpoint)
     console.log(`\n\n${(this.constructor as any).generateCurlCommand(url, 'POST', { 'Authorization': `Bearer ${this.apiKey}` }, body)}\n\n`)
     
     // 使用SDK执行
@@ -77,7 +79,7 @@ export class GrokProvider extends BaseAIProvider {
     }
 
     // 日志记录
-    const url = new URL(endpoint, this.client.defaults.baseURL).href
+    const url = (this.constructor as any).combineURLs(this.baseUrl, endpoint)
     console.log(`\n\n${(this.constructor as any).generateCurlCommand(url, 'POST', { 'Authorization': `Bearer ${this.apiKey}` }, body)}\n\n`)
 
     // 使用SDK执行
