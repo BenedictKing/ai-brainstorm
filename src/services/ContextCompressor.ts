@@ -16,7 +16,7 @@ export class ContextCompressor {
     preserveSystemMessages: true,
     preserveRecentMessages: 3,
     extractKeyPoints: true,
-    compressionModel: 'claude'
+    compressionModel: config.context.compressionProvider
   };
 
   static async compressMessages(
@@ -233,7 +233,7 @@ ${content}
       targetLength,
       preserveRecentMessages: preserveRecent,
       extractKeyPoints: true,
-      compressionModel: 'claude'
+      compressionModel: config.context.compressionProvider
     };
 
     return this.compressMessages(messages, options);

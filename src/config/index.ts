@@ -14,26 +14,26 @@ export const config = {
   port: parseInt(process.env.PORT || '3000'),
   nodeEnv: process.env.NODE_ENV || 'development',
   
-  apis: {
+    apis: {
     openai: {
       apiKey: process.env.OPENAI_API_KEY,
       baseUrl: process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1',
       model: process.env.OPENAI_MODEL || 'gpt-4',
-      format: 'openai' as const,
+      format: process.env.OPENAI_FORMAT as 'openai' | 'claude' | 'gemini' || 'openai',
       enabled: !!process.env.OPENAI_API_KEY
     },
     claude: {
       apiKey: process.env.CLAUDE_API_KEY,
       baseUrl: process.env.CLAUDE_BASE_URL || 'https://api.anthropic.com/v1',
       model: process.env.CLAUDE_MODEL || 'claude-3-sonnet-20240229',
-      format: 'claude' as const,
+      format: process.env.CLAUDE_FORMAT as 'openai' | 'claude' | 'gemini' || 'claude',
       enabled: !!process.env.CLAUDE_API_KEY
     },
     gemini: {
       apiKey: process.env.GEMINI_API_KEY,
       baseUrl: process.env.GEMINI_BASE_URL || 'https://generativelanguage.googleapis.com/v1beta',
       model: process.env.GEMINI_MODEL || 'gemini-pro',
-      format: 'gemini' as const,
+      format: process.env.GEMINI_FORMAT as 'openai' | 'claude' | 'gemini' || 'gemini',
       enabled: !!process.env.GEMINI_API_KEY
     },
     grok: {
@@ -49,7 +49,8 @@ export const config = {
 
   context: {
     maxLength: parseInt(process.env.MAX_CONTEXT_LENGTH || '8000'),
-    compressionRatio: parseFloat(process.env.COMPRESSION_RATIO || '0.3')
+    compressionRatio: parseFloat(process.env.COMPRESSION_RATIO || '0.3'),
+    compressionProvider: process.env.COMPRESSION_PROVIDER || 'gemini'
   },
 
   database: {
