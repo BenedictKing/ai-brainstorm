@@ -1,7 +1,7 @@
 export interface AIModel {
   id: string
   name: string
-  provider: 'openai' | 'claude' | 'gemini' | 'grok'
+  provider: 'openai' | 'claude' | 'gemini' | 'grok' | string // 允许 string 作为自定义提供商的类型
   maxTokens: number
   supportedFeatures: string[]
 }
