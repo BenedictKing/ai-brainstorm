@@ -1,7 +1,7 @@
 <template>
   <div 
     class="participant-card"
-    :class="{ selected, disabled }"
+    :class="{ selected, disabled, 'selector-active': showSelector }"
     @click="handleCardClick"
   >
     <div class="badge">{{ role.tags[0] }}</div>
@@ -121,6 +121,10 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+.participant-card.selector-active {
+  z-index: 10;
+}
+
 /* At the end of the file, add styles for the disabled state */
 .participant-card.disabled {
   cursor: not-allowed;
