@@ -2,12 +2,12 @@ import express, { Request, Response } from 'express';
 import cors from 'cors';
 import { WebSocketServer } from 'ws';
 import { createServer } from 'http';
-import { DiscussionManager } from './services/DiscussionManager.js';
-import { KnowledgeManager } from './services/KnowledgeManager.js';
-import { RoleManager } from './services/RoleManager.js';
-import { AIProviderFactory } from './models/index.js';
-import { config, validateConfig } from './config/index.js';
-import { DiscussionTopic } from './types/index.js';
+import { DiscussionManager } from './services/DiscussionManager';
+import { KnowledgeManager } from './services/KnowledgeManager';
+import { RoleManager } from './services/RoleManager';
+import { AIProviderFactory } from './models';
+import { config, validateConfig } from './config';
+import { DiscussionTopic } from './types';
 
 class AIBrainstormServer {
   private app: express.Application;
