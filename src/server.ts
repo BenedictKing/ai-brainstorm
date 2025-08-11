@@ -16,7 +16,7 @@ class AIBrainstormServer {
   private wss: WebSocketServer;
   private discussionManager: DiscussionManager;
   private knowledgeManager: KnowledgeManager;
-  private publicPath: string; // 新增成员变量
+  private publicPath!: string; // 新增成员变量
 
   constructor() {
     this.app = express();
