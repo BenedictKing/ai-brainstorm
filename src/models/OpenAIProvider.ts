@@ -62,7 +62,7 @@ export class OpenAIProvider extends BaseAIProvider {
       `\n\n${(this.constructor as any).generateCurlCommand(
         url,
         'POST',
-        { Authorization: `Bearer ${this.apiKey}` },
+        { ...this.client.defaults.headers.common, Authorization: `Bearer ${this.apiKey}` },
         body
       )}\n\n`
     )
@@ -90,7 +90,7 @@ export class OpenAIProvider extends BaseAIProvider {
       `\n\n${(this.constructor as any).generateCurlCommand(
         url,
         'POST',
-        { Authorization: `Bearer ${this.apiKey}` },
+        { ...this.client.defaults.headers.common, Authorization: `Bearer ${this.apiKey}` },
         body
       )}\n\n`
     )

@@ -67,7 +67,7 @@ export class ClaudeProvider extends BaseAIProvider {
       `\n\n${(this.constructor as any).generateCurlCommand(
         url,
         'POST',
-        { 'x-api-key': this.apiKey, 'anthropic-version': '2023-06-01' },
+        { ...this.client.defaults.headers.common, 'x-api-key': this.apiKey, 'anthropic-version': '2023-06-01' },
         body
       )}\n\n`
     )
@@ -94,7 +94,7 @@ export class ClaudeProvider extends BaseAIProvider {
       `\n\n${(this.constructor as any).generateCurlCommand(
         url,
         'POST',
-        { 'x-api-key': this.apiKey, 'anthropic-version': '2023-06-01' },
+        { ...this.client.defaults.headers.common, 'x-api-key': this.apiKey, 'anthropic-version': '2023-06-01' },
         body
       )}\n\n`
     )

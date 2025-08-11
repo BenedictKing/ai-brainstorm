@@ -87,9 +87,7 @@ export class GeminiProvider extends BaseAIProvider {
       `\n\n${(this.constructor as any).generateCurlCommand(
         url,
         'POST',
-        {
-          /* no headers for Gemini API Key in URL */
-        },
+        { ...this.client.defaults.headers.common },
         body
       )}\n\n`
     )
@@ -122,9 +120,7 @@ export class GeminiProvider extends BaseAIProvider {
       `\n\n${(this.constructor as any).generateCurlCommand(
         url,
         'POST',
-        {
-          /* no headers for Gemini API Key in URL */
-        },
+        { ...this.client.defaults.headers.common },
         body
       )}\n\n`
     )
