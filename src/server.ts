@@ -128,7 +128,7 @@ class AIBrainstormServer {
           data: { 
             conversationId,
             topic,
-            participants: participants.map(p => RoleManager.getRoleById(p))
+            participants: participants.map((p: string) => RoleManager.getRoleById(p))
           }
         });
 
