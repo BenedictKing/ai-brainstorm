@@ -1,10 +1,12 @@
 import { BaseAIProvider } from './BaseAIProvider.js'
 import { Message, AIModel } from '../types/index.js'
-// 移除 Anthropic SDK 导入
+import { BaseAIProvider } from './BaseAIProvider.js'
+import { Message, AIModel } from '../types/index.js'
+import Anthropic from '@anthropic-ai/sdk' // 恢复导入
 
 export class ClaudeProvider extends BaseAIProvider {
   private modelName: string
-  // 移除 anthropic 成员
+  private anthropic: Anthropic // 恢复SDK实例
 
   constructor(apiKey: string, model: string, baseUrl = 'https://api.anthropic.com/v1', providerName: string) {
     const aiModel: AIModel = {
@@ -17,11 +19,11 @@ export class ClaudeProvider extends BaseAIProvider {
 
     super(apiKey, baseUrl, aiModel)
     this.modelName = model
+    this.anthropic = new Anthropic({ apiKey, baseURL: baseUrl }) // 初始化SDK
   }
 
   protected setupAuth(apiKey: string): void {
-    this.client.defaults.headers.common['x-api-key'] = apiKey
-    this.client.defaults.headers.common['anthropic-version'] = '2023-06-01'
+    // SDK handles auth automatically
   }
 
   protected formatMessages(messages: Message[]): any[] {
@@ -51,34 +53,52 @@ export class ClaudeProvider extends BaseAIProvider {
 
   protected async makeRequest(messages: any[], systemPrompt?: string): Promise<any> {
     const endpoint = '/messages'
-    const body = {
+    const body: Anthropic.Messages.MessageCreateParams = {
       model: this.modelName,
       max_tokens: 16384,
       temperature: 0.7,
-      system: systemPrompt || undefined,
-      messages: messages,
+      system: systemPrompt,
+      messages: messages as Anthropic.Messages.MessageParam[],
     }
 
+    // 日志记录
     const url = new URL(endpoint, this.client.defaults.baseURL).href
-    console.log(`\n\n${(this.constructor as any).generateCurlCommand(url, 'POST', this.client.defaults.headers.common, body)}\n\n`)
+    console.log(`\n\n${(this.constructor as any).generateCurlCommand(url, 'POST', { 'x-api-key': this.apiKey, 'anthropic-version': '2023-06-01' }, body)}\n\n`)
 
-    return this.client.post(endpoint, body)
+    // 使用SDK执行
+    const completion = await this.anthropic.messages.create(body)
+    return { data: completion }
   }
 
   protected async makeStreamRequest(messages: any[], systemPrompt?: string): Promise<any> {
     const endpoint = '/messages'
-    const body = {
+    const body: Anthropic.Messages.MessageCreateParams = {
       model: this.modelName,
       max_tokens: 16384,
       temperature: 0.7,
-      system: systemPrompt || undefined,
-      messages: messages,
+      system: systemPrompt,
+      messages: messages as Anthropic.Messages.MessageParam[],
       stream: true,
     }
 
+    // 日志记录
     const url = new URL(endpoint, this.client.defaults.baseURL).href
-    console.log(`\n\n${(this.constructor as any).generateCurlCommand(url, 'POST', this.client.defaults.headers.common, body)}\n\n`)
+    console.log(`\n\n${(this.constructor as any).generateCurlCommand(url, 'POST', { 'x-api-key': this.apiKey, 'anthropic-version': '2023-06-01' }, body)}\n\n`)
 
-    return this.client.post(endpoint, body, { responseType: 'stream' })
+    // 使用SDK执行
+    const stream = await this.anthropic.messages.create(body)
+    return { data: stream }
+  }
+
+  // 覆盖基类方法以处理 Anthropic SDK 的流
+  protected async handleStreamResponse(response: any): Promise<string> {
+    const stream = response.data
+    let fullContent = ''
+    for await (const chunk of stream) {
+      if (chunk.type === 'content_block_delta' && chunk.delta.type === 'text_delta') {
+        fullContent += chunk.delta.text
+      }
+    }
+    return fullContent
   }
 }

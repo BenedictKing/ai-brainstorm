@@ -1,10 +1,12 @@
 import { BaseAIProvider } from './BaseAIProvider.js'
 import { Message, AIModel } from '../types/index.js'
-// 移除 GoogleGenerativeAI SDK 导入
+import { BaseAIProvider } from './BaseAIProvider.js'
+import { Message, AIModel } from '../types/index.js'
+import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from '@google/generative-ai' // 恢复导入
 
 export class GeminiProvider extends BaseAIProvider {
   private modelName: string
-  // 移除 genAI 成员
+  private genAI: GoogleGenerativeAI // 恢复SDK实例
 
   constructor(apiKey: string, model = 'gemini-1.5-pro', baseUrl = 'https://generativelanguage.googleapis.com/v1beta', providerName = 'gemini') {
     const aiModel: AIModel = {
@@ -17,6 +19,7 @@ export class GeminiProvider extends BaseAIProvider {
 
     super(apiKey, baseUrl, aiModel)
     this.modelName = model
+    this.genAI = new GoogleGenerativeAI(apiKey) // 初始化SDK
   }
 
   protected setupAuth(apiKey: string): void {
@@ -63,7 +66,7 @@ export class GeminiProvider extends BaseAIProvider {
   }
 
   protected async makeRequest(messages: any[], systemPrompt?: string): Promise<any> {
-    const endpoint = `/models/${this.modelName}:generateContent?key=${this.apiKey}`
+    const endpoint = `/models/${this.modelName}:generateContent`
     const body = {
       contents: messages,
       generationConfig: {
@@ -73,14 +76,18 @@ export class GeminiProvider extends BaseAIProvider {
       systemInstruction: systemPrompt ? { parts: [{ text: systemPrompt }] } : undefined,
     }
 
-    const url = new URL(endpoint.replace(this.apiKey, '[REDACTED]'), this.client.defaults.baseURL).href
-    console.log(`\n\n${(this.constructor as any).generateCurlCommand(url, 'POST', this.client.defaults.headers.common, body)}\n\n`)
+    // 日志记录
+    const url = new URL(`${endpoint}?key=[REDACTED]`, this.client.defaults.baseURL).href
+    console.log(`\n\n${(this.constructor as any).generateCurlCommand(url, 'POST', { /* no headers for Gemini API Key in URL */ }, body)}\n\n`)
 
-    return this.client.post(endpoint, body)
+    // 使用SDK执行
+    const model = this.genAI.getGenerativeModel({ model: this.modelName, systemInstruction: systemPrompt ? { parts: [{ text: systemPrompt }] } : undefined })
+    const result = await model.generateContent({ contents: body.contents, generationConfig: body.generationConfig })
+    return { data: result.response }
   }
 
   protected async makeStreamRequest(messages: any[], systemPrompt?: string): Promise<any> {
-    const endpoint = `/models/${this.modelName}:streamGenerateContent?key=${this.apiKey}`
+    const endpoint = `/models/${this.modelName}:streamGenerateContent`
     const body = {
       contents: messages,
       generationConfig: {
@@ -90,9 +97,26 @@ export class GeminiProvider extends BaseAIProvider {
       systemInstruction: systemPrompt ? { parts: [{ text: systemPrompt }] } : undefined,
     }
 
-    const url = new URL(endpoint.replace(this.apiKey, '[REDACTED]'), this.client.defaults.baseURL).href
-    console.log(`\n\n${(this.constructor as any).generateCurlCommand(url, 'POST', this.client.defaults.headers.common, body)}\n\n`)
+    // 日志记录
+    const url = new URL(`${endpoint}?key=[REDACTED]`, this.client.defaults.baseURL).href
+    console.log(`\n\n${(this.constructor as any).generateCurlCommand(url, 'POST', { /* no headers for Gemini API Key in URL */ }, body)}\n\n`)
 
-    return this.client.post(endpoint, body, { responseType: 'stream' })
+    // 使用SDK执行
+    const model = this.genAI.getGenerativeModel({ model: this.modelName, systemInstruction: systemPrompt ? { parts: [{ text: systemPrompt }] } : undefined })
+    const result = await model.generateContentStream({ contents: body.contents, generationConfig: body.generationConfig })
+    return { data: result.stream }
+  }
+
+  // 覆盖基类方法以处理 Gemini SDK 的流
+  protected async handleStreamResponse(response: any): Promise<string> {
+    const stream = response.data
+    let fullContent = ''
+    for await (const chunk of stream) {
+      const content = chunk.text()
+      if (content) {
+        fullContent += content
+      }
+    }
+    return fullContent
   }
 }

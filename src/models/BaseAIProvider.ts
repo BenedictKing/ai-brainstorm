@@ -109,7 +109,7 @@ export abstract class BaseAIProvider {
     )
   }
 
-  private async handleStreamResponse(response: any): Promise<string> {
+  protected async handleStreamResponse(response: any): Promise<string> {
     return new Promise(async (resolve, reject) => {
       let fullContent = ''
 

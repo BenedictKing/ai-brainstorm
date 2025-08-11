@@ -1,10 +1,12 @@
 import { BaseAIProvider } from './BaseAIProvider.js'
 import { Message, AIModel } from '../types/index.js'
-// 移除 OpenAI SDK 导入
+import { BaseAIProvider } from './BaseAIProvider.js'
+import { Message, AIModel } from '../types/index.js'
+import OpenAI from 'openai' // 恢复导入
 
 export class OpenAIProvider extends BaseAIProvider {
   private modelName: string
-  // 移除 openai 成员
+  private openai: OpenAI // 恢复SDK实例
 
   constructor(apiKey: string, model = 'gpt-4o', baseUrl = 'https://api.openai.com/v1', providerName = 'openai') {
     const aiModel: AIModel = {
@@ -17,10 +19,11 @@ export class OpenAIProvider extends BaseAIProvider {
 
     super(apiKey, baseUrl, aiModel)
     this.modelName = model
+    this.openai = new OpenAI({ apiKey, baseURL: baseUrl }) // 初始化SDK
   }
 
   protected setupAuth(apiKey: string): void {
-    this.client.defaults.headers.common['Authorization'] = `Bearer ${apiKey}`
+    // SDK handles auth automatically
   }
 
   protected formatMessages(messages: Message[]): any[] {
@@ -53,10 +56,13 @@ export class OpenAIProvider extends BaseAIProvider {
       max_tokens: 16384,
     }
 
+    // 日志记录
     const url = new URL(endpoint, this.client.defaults.baseURL).href
-    console.log(`\n\n${(this.constructor as any).generateCurlCommand(url, 'POST', this.client.defaults.headers.common, body)}\n\n`)
+    console.log(`\n\n${(this.constructor as any).generateCurlCommand(url, 'POST', { 'Authorization': `Bearer ${this.apiKey}` }, body)}\n\n`)
 
-    return this.client.post(endpoint, body)
+    // 使用SDK执行
+    const completion = await this.openai.chat.completions.create(body)
+    return { data: completion }
   }
 
   protected async makeStreamRequest(messages: any[], systemPrompt?: string): Promise<any> {
@@ -70,9 +76,25 @@ export class OpenAIProvider extends BaseAIProvider {
       stream: true,
     }
 
+    // 日志记录
     const url = new URL(endpoint, this.client.defaults.baseURL).href
-    console.log(`\n\n${(this.constructor as any).generateCurlCommand(url, 'POST', this.client.defaults.headers.common, body)}\n\n`)
+    console.log(`\n\n${(this.constructor as any).generateCurlCommand(url, 'POST', { 'Authorization': `Bearer ${this.apiKey}` }, body)}\n\n`)
     
-    return this.client.post(endpoint, body, { responseType: 'stream' })
+    // 使用SDK执行
+    const stream = await this.openai.chat.completions.create(body)
+    return { data: stream }
+  }
+  
+  // 覆盖基类方法以处理 OpenAI SDK 的流
+  protected async handleStreamResponse(response: any): Promise<string> {
+    const stream = response.data
+    let fullContent = ''
+    for await (const chunk of stream) {
+      const content = chunk.choices[0]?.delta?.content || ''
+      if (content) {
+        fullContent += content
+      }
+    }
+    return fullContent
   }
 }
