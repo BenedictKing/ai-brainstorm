@@ -30,6 +30,7 @@ export interface ProviderConfig {
   model: string
   format: 'openai' | 'claude' | 'gemini' | 'grok'
   enabled?: boolean
+  maxTokens?: number
 }
 
 export const config = {
@@ -43,6 +44,7 @@ export const config = {
       model: process.env.OPENAI_MODEL || 'gpt-5',
       format: (process.env.OPENAI_FORMAT as 'openai' | 'claude' | 'gemini') || 'openai',
       enabled: !!process.env.OPENAI_API_KEY,
+      maxTokens: parseInt(process.env.OPENAI_MAX_TOKENS || '16384'),
     },
     claude: {
       apiKey: process.env.CLAUDE_API_KEY,
@@ -50,6 +52,7 @@ export const config = {
       model: process.env.CLAUDE_MODEL || 'claude-4-sonnet',
       format: (process.env.CLAUDE_FORMAT as 'openai' | 'claude' | 'gemini') || 'claude',
       enabled: !!process.env.CLAUDE_API_KEY,
+      maxTokens: parseInt(process.env.CLAUDE_MAX_TOKENS || '16384'),
     },
     gemini: {
       apiKey: process.env.GEMINI_API_KEY,
@@ -57,13 +60,15 @@ export const config = {
       model: process.env.GEMINI_MODEL || 'gemini-2.5-pro',
       format: (process.env.GEMINI_FORMAT as 'openai' | 'claude' | 'gemini') || 'gemini',
       enabled: !!process.env.GEMINI_API_KEY,
+      maxTokens: parseInt(process.env.GEMINI_MAX_TOKENS || '32768'),
     },
     grok: {
       apiKey: process.env.GROK_API_KEY,
       baseUrl: process.env.GROK_BASE_URL || 'https://api.x.ai/v1',
-      model: process.env.GROK_MODEL || 'grok-1.5-sonnet', // 修正为实际模型名
-      format: (process.env.GROK_FORMAT as 'openai' | 'claude' | 'gemini' | 'grok') || 'grok', // 修正 format
+      model: process.env.GROK_MODEL || 'grok-4', // 修正为实际模型名
+      format: (process.env.GROK_FORMAT as 'openai' | 'claude' | 'gemini' | 'grok') || 'openai', // 修正 format
       enabled: !!process.env.GROK_API_KEY,
+      maxTokens: parseInt(process.env.GROK_MAX_TOKENS || '16384'),
     },
     // 支持自定义提供商
     ...loadCustomProviders(),
@@ -121,7 +126,8 @@ function loadCustomProviders(): Record<string, ProviderConfig> {
     const apiKey = process.env[`CUSTOM_PROVIDER_${upperName}_API_KEY`]
     const baseUrl = process.env[`CUSTOM_PROVIDER_${upperName}_BASE_URL`]
     const model = process.env[`CUSTOM_PROVIDER_${upperName}_MODEL`]
-    const format = process.env[`CUSTOM_PROVIDER_${upperName}_FORMAT`] as 'openai' | 'claude' | 'gemini'
+    const format = process.env[`CUSTOM_PROVIDER_${upperName}_FORMAT`] as 'openai' | 'claude' | 'gemini' | 'grok'
+    const maxTokens = parseInt(process.env[`CUSTOM_PROVIDER_${upperName}_MAX_TOKENS`] || '8192')
 
     if (apiKey && baseUrl && model && format) {
       customProviders[name] = {
@@ -130,6 +136,7 @@ function loadCustomProviders(): Record<string, ProviderConfig> {
         model,
         format,
         enabled: true,
+        maxTokens,
       }
     }
   })
