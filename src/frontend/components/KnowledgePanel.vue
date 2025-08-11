@@ -24,7 +24,7 @@ import { ref, computed, onMounted } from 'vue'
 const stats = ref({
   totalTopics: 0,
   totalEntries: 0,
-  averageEntriesPerTopic: 0
+  averageEntriesPerTopic: 0,
 })
 
 const averageEntries = computed(() => {
@@ -35,7 +35,7 @@ const loadKnowledgeStats = async () => {
   try {
     const response = await fetch('/api/knowledge/stats')
     const result = await response.json()
-    
+
     if (result.success) {
       stats.value = result.data
     }

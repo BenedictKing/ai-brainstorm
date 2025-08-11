@@ -1,33 +1,26 @@
-import { BaseAIProvider } from "./BaseAIProvider.js";
-import { Message, AIModel } from "../types/index.js";
-import OpenAI from "openai";
+import { BaseAIProvider } from './BaseAIProvider.js'
+import { Message, AIModel } from '../types/index.js'
+import OpenAI from 'openai'
 
 export class OpenAIProvider extends BaseAIProvider {
-  private modelName: string;
-  private openai: OpenAI;
+  private modelName: string
+  private openai: OpenAI
 
-  constructor(
-    apiKey: string,
-    model = "gpt-4o",
-    baseUrl = "https://api.openai.com/v1",
-    providerName = "openai"
-  ) {
+  constructor(apiKey: string, model = 'gpt-4o', baseUrl = 'https://api.openai.com/v1', providerName = 'openai') {
     const aiModel: AIModel = {
       id: `${providerName}-${model}`,
-      name: `${
-        providerName.charAt(0).toUpperCase() + providerName.slice(1)
-      } (${model})`,
-      provider: "openai",
+      name: `${providerName.charAt(0).toUpperCase() + providerName.slice(1)} (${model})`,
+      provider: 'openai',
       maxTokens: 16384,
-      supportedFeatures: ["chat", "reasoning", "code"],
-    };
+      supportedFeatures: ['chat', 'reasoning', 'code'],
+    }
 
-    super(apiKey, baseUrl, aiModel);
-    this.modelName = model;
+    super(apiKey, baseUrl, aiModel)
+    this.modelName = model
     this.openai = new OpenAI({
       apiKey: apiKey,
       baseURL: baseUrl,
-    });
+    })
   }
 
   protected setupAuth(apiKey: string): void {
@@ -38,37 +31,37 @@ export class OpenAIProvider extends BaseAIProvider {
     return messages.map((msg) => ({
       role: msg.role,
       content: msg.content,
-    }));
+    }))
   }
 
   protected parseResponse(response: any): string {
-    return response.choices[0]?.message?.content || "";
+    return response.choices[0]?.message?.content || ''
   }
 
   protected parseStreamResponse(chunk: string): string | null {
     try {
-      const parsed = JSON.parse(chunk);
-      return parsed.choices?.[0]?.delta?.content || null;
+      const parsed = JSON.parse(chunk)
+      return parsed.choices?.[0]?.delta?.content || null
     } catch {
-      return null;
+      return null
     }
   }
 
   protected async makeRequest(messages: any[], systemPrompt?: string): Promise<any> {
-    const finalMessages = systemPrompt ? [{ role: 'system', content: systemPrompt }, ...messages] : messages;
-    
+    const finalMessages = systemPrompt ? [{ role: 'system', content: systemPrompt }, ...messages] : messages
+
     const completion = await this.openai.chat.completions.create({
       model: this.modelName,
       messages: finalMessages,
       temperature: 0.7,
       max_tokens: 16384,
-    });
+    })
 
-    return { data: completion };
+    return { data: completion }
   }
 
   protected async makeStreamRequest(messages: any[], systemPrompt?: string): Promise<any> {
-    const finalMessages = systemPrompt ? [{ role: 'system', content: systemPrompt }, ...messages] : messages;
+    const finalMessages = systemPrompt ? [{ role: 'system', content: systemPrompt }, ...messages] : messages
 
     const stream = await this.openai.chat.completions.create({
       model: this.modelName,
@@ -76,8 +69,8 @@ export class OpenAIProvider extends BaseAIProvider {
       temperature: 0.7,
       max_tokens: 16384,
       stream: true,
-    });
+    })
 
-    return { data: stream };
+    return { data: stream }
   }
 }

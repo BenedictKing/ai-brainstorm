@@ -13,11 +13,11 @@ export function useProviders() {
         },
       })
       const result = await response.json()
-      
+
       if (result.success) {
         // 转换为以name为key的对象
         const providerMap = {}
-        result.data.forEach(provider => {
+        result.data.forEach((provider) => {
           providerMap[provider.name] = provider
         })
         providers.value = providerMap
@@ -31,6 +31,6 @@ export function useProviders() {
 
   return {
     providers,
-    loadProviders
+    loadProviders,
   }
 }

@@ -1,4 +1,4 @@
-import { v4 as uuidv4 } from 'uuid';
+import { v4 as uuidv4 } from 'uuid'
 
 // localStorage工具函数
 export const STORAGE_KEYS = {
@@ -8,7 +8,7 @@ export const STORAGE_KEYS = {
   CLIENT_ID: 'brainstorm_client_id',
   ACTIVE_DISCUSSION_ID: 'brainstorm_active_discussion_id',
   ACTIVE_DISCUSSION_TITLE: 'brainstorm_active_discussion_title',
-};
+}
 
 // 从localStorage加载数据
 export const loadFromStorage = (key, defaultValue) => {
@@ -42,7 +42,7 @@ export const removeFromStorage = (key) => {
 // 清空所有应用相关的localStorage数据
 export const clearAppStorage = () => {
   try {
-    Object.values(STORAGE_KEYS).forEach(key => {
+    Object.values(STORAGE_KEYS).forEach((key) => {
       localStorage.removeItem(key)
     })
     console.log('🗑️ 已清空所有缓存数据')
@@ -60,7 +60,7 @@ export const getStorageInfo = () => {
     const data = localStorage.getItem(key)
     info[name] = {
       exists: !!data,
-      size: data ? new Blob([data]).size : 0
+      size: data ? new Blob([data]).size : 0,
     }
   })
   return info
@@ -68,10 +68,10 @@ export const getStorageInfo = () => {
 
 // 获取或创建客户端ID
 export const getClientId = () => {
-  let clientId = localStorage.getItem(STORAGE_KEYS.CLIENT_ID);
+  let clientId = localStorage.getItem(STORAGE_KEYS.CLIENT_ID)
   if (!clientId) {
-    clientId = uuidv4();
-    localStorage.setItem(STORAGE_KEYS.CLIENT_ID, clientId);
+    clientId = uuidv4()
+    localStorage.setItem(STORAGE_KEYS.CLIENT_ID, clientId)
   }
-  return clientId;
-};
+  return clientId
+}

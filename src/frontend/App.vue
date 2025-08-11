@@ -23,62 +23,62 @@
 </template>
 
 <script setup>
-import { ref, provide, onMounted } from 'vue'; // 引入 onMounted
-import DiscussionForm from './components/DiscussionForm.vue';
-import DiscussionView from './components/DiscussionView.vue';
-import KnowledgePanel from './components/KnowledgePanel.vue';
-import { usePolling } from './composables/useWebSocket';
-import { useProviders } from './composables/useProviders';
-import { STORAGE_KEYS, loadFromStorage, removeFromStorage } from './utils/storage'; // 引入 helpers
+import { ref, provide, onMounted } from 'vue' // 引入 onMounted
+import DiscussionForm from './components/DiscussionForm.vue'
+import DiscussionView from './components/DiscussionView.vue'
+import KnowledgePanel from './components/KnowledgePanel.vue'
+import { usePolling } from './composables/useWebSocket'
+import { useProviders } from './composables/useProviders'
+import { STORAGE_KEYS, loadFromStorage, removeFromStorage } from './utils/storage' // 引入 helpers
 
 // 状态管理
-const showDiscussion = ref(false);
-const showKnowledge = ref(false);
-const currentDiscussionId = ref(null);
-const discussionTitle = ref('');
+const showDiscussion = ref(false)
+const showKnowledge = ref(false)
+const currentDiscussionId = ref(null)
+const discussionTitle = ref('')
 
 // 组合式函数
-const { isPolling, startPolling, stopPolling } = usePolling();
-const { providers, loadProviders } = useProviders();
+const { isPolling, startPolling, stopPolling } = usePolling()
+const { providers, loadProviders } = useProviders()
 
 // 提供全局状态
-provide('isPolling', isPolling);
-provide('startPolling', startPolling);
-provide('stopPolling', stopPolling);
-provide('providers', providers);
+provide('isPolling', isPolling)
+provide('startPolling', startPolling)
+provide('stopPolling', stopPolling)
+provide('providers', providers)
 
 // 初始化
-loadProviders();
+loadProviders()
 
 // 事件处理
 const startDiscussion = ({ discussionId, title }) => {
-  currentDiscussionId.value = discussionId;
-  discussionTitle.value = title;
-  showDiscussion.value = true;
-  showKnowledge.value = false;
-};
+  currentDiscussionId.value = discussionId
+  discussionTitle.value = title
+  showDiscussion.value = true
+  showKnowledge.value = false
+}
 
 const backToHome = () => {
-  showDiscussion.value = false;
-  showKnowledge.value = false;
-  currentDiscussionId.value = null;
-  discussionTitle.value = '';
+  showDiscussion.value = false
+  showKnowledge.value = false
+  currentDiscussionId.value = null
+  discussionTitle.value = ''
 
   // 清除 localStorage 中的活跃讨论状态
-  removeFromStorage(STORAGE_KEYS.ACTIVE_DISCUSSION_ID);
-  removeFromStorage(STORAGE_KEYS.ACTIVE_DISCUSSION_TITLE);
-};
+  removeFromStorage(STORAGE_KEYS.ACTIVE_DISCUSSION_ID)
+  removeFromStorage(STORAGE_KEYS.ACTIVE_DISCUSSION_TITLE)
+}
 
 // 在组件挂载时检查并恢复讨论状态
 onMounted(() => {
-  const activeId = loadFromStorage(STORAGE_KEYS.ACTIVE_DISCUSSION_ID);
-  const activeTitle = loadFromStorage(STORAGE_KEYS.ACTIVE_DISCUSSION_TITLE);
+  const activeId = loadFromStorage(STORAGE_KEYS.ACTIVE_DISCUSSION_ID)
+  const activeTitle = loadFromStorage(STORAGE_KEYS.ACTIVE_DISCUSSION_TITLE)
 
   if (activeId && activeTitle) {
-    console.log(`🔄 Resuming active discussion: ${activeId}`);
-    startDiscussion({ discussionId: activeId, title: activeTitle });
+    console.log(`🔄 Resuming active discussion: ${activeId}`)
+    startDiscussion({ discussionId: activeId, title: activeTitle })
   }
-});
+})
 </script>
 
 <style scoped>

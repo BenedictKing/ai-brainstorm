@@ -1,50 +1,50 @@
-import express, { Request, Response } from 'express';
-import cors from 'cors';
-import { createServer } from 'http';
-import { DiscussionManager } from './services/DiscussionManager.js';
-import { KnowledgeManager } from './services/KnowledgeManager.js';
-import { RoleManager } from './services/RoleManager.js';
-import { AIProviderFactory } from './models/index.js';
-import { config, validateConfig } from './config/index.js';
-import { DiscussionTopic } from './types/index.js';
-import * as path from 'path';
+import express, { Request, Response } from 'express'
+import cors from 'cors'
+import { createServer } from 'http'
+import { DiscussionManager } from './services/DiscussionManager.js'
+import { KnowledgeManager } from './services/KnowledgeManager.js'
+import { RoleManager } from './services/RoleManager.js'
+import { AIProviderFactory } from './models/index.js'
+import { config, validateConfig } from './config/index.js'
+import { DiscussionTopic } from './types/index.js'
+import * as path from 'path'
 
 class AIBrainstormServer {
-  private app: express.Application;
-  private server: any;
-  private discussionManager: DiscussionManager;
-  private knowledgeManager: KnowledgeManager;
-  private publicPath!: string; // 新增成员变量
+  private app: express.Application
+  private server: any
+  private discussionManager: DiscussionManager
+  private knowledgeManager: KnowledgeManager
+  private publicPath!: string // 新增成员变量
 
   constructor() {
-    this.app = express();
-    this.server = createServer(this.app);
+    this.app = express()
+    this.server = createServer(this.app)
 
     this.discussionManager = new DiscussionManager({
       maxRounds: 3,
       responseTimeout: 300000,
       enableRealTimeUpdates: false,
-    });
+    })
 
-    this.knowledgeManager = new KnowledgeManager();
+    this.knowledgeManager = new KnowledgeManager()
 
-    this.setupMiddleware();
-    this.setupRoutes();
-    this.setupEventListeners();
+    this.setupMiddleware()
+    this.setupRoutes()
+    this.setupEventListeners()
   }
 
   private setupMiddleware(): void {
-    this.app.use(cors());
-    this.app.use(express.json());
+    this.app.use(cors())
+    this.app.use(express.json())
 
     // 设置并保存静态目录路径（生产环境指向 dist/public，开发指向项目根 public）
     this.publicPath =
       process.env.NODE_ENV === 'production'
         ? path.join(process.cwd(), 'dist', 'public') // 生产：dist/public（与 build 输出一致）
-        : path.resolve(process.cwd(), 'public'); // 开发：项目根 public
+        : path.resolve(process.cwd(), 'public') // 开发：项目根 public
 
-    console.log(`📁 Serving static files from: ${path.resolve(this.publicPath)}`);
-    this.app.use(express.static(this.publicPath));
+    console.log(`📁 Serving static files from: ${path.resolve(this.publicPath)}`)
+    this.app.use(express.static(this.publicPath))
   }
 
   private setupRoutes(): void {
@@ -67,11 +67,11 @@ class AIBrainstormServer {
               },
             ])
         ),
-      });
-    });
+      })
+    })
 
     this.app.get('/api/providers', (req: Request, res: Response) => {
-      const configs = AIProviderFactory.getAllProviderConfigs();
+      const configs = AIProviderFactory.getAllProviderConfigs()
       const providers = Object.entries(configs).map(([name, config]: [string, any]) => ({
         name,
         model: config.model,
@@ -79,19 +79,19 @@ class AIBrainstormServer {
         baseUrl: config.baseUrl,
         enabled: config.enabled,
         hasApiKey: !!config.apiKey,
-      }));
+      }))
 
-      res.json({ success: true, data: providers });
-    });
+      res.json({ success: true, data: providers })
+    })
 
     this.app.get('/api/providers/:name', (req: Request, res: Response) => {
-      const config = AIProviderFactory.getProviderConfig(req.params.name);
+      const config = AIProviderFactory.getProviderConfig(req.params.name)
 
       if (!config) {
         return res.status(404).json({
           success: false,
           error: 'Provider not found',
-        });
+        })
       }
 
       res.json({
@@ -104,28 +104,28 @@ class AIBrainstormServer {
           enabled: config.enabled,
           hasApiKey: !!config.apiKey,
         },
-      });
-    });
+      })
+    })
 
     this.app.get('/api/roles', (req: Request, res: Response) => {
-      const roles = RoleManager.getAllRoles();
-      res.json({ success: true, data: roles });
-    });
+      const roles = RoleManager.getAllRoles()
+      res.json({ success: true, data: roles })
+    })
 
     this.app.post('/api/discussions', async (req: Request, res: Response) => {
       try {
-        const clientId = req.headers['x-client-id'] as string;
+        const clientId = req.headers['x-client-id'] as string
         if (!clientId) {
-          return res.status(400).json({ success: false, error: 'X-Client-ID header is required' });
+          return res.status(400).json({ success: false, error: 'X-Client-ID header is required' })
         }
 
-        const { question, context, participants } = req.body;
+        const { question, context, participants } = req.body
 
         if (!question) {
           return res.status(400).json({
             success: false,
             error: 'Question is required',
-          });
+          })
         }
 
         const topic: DiscussionTopic = {
@@ -133,10 +133,10 @@ class AIBrainstormServer {
           question,
           context,
           participants: participants || [],
-        };
+        }
 
-        const conversationId = await this.discussionManager.startDiscussion(clientId, topic);
-        const conversation = this.discussionManager.getConversation(clientId, conversationId);
+        const conversationId = await this.discussionManager.startDiscussion(clientId, topic)
+        const conversation = this.discussionManager.getConversation(clientId, conversationId)
 
         res.json({
           success: true,
@@ -145,160 +145,160 @@ class AIBrainstormServer {
             topic,
             participants: conversation ? conversation.participants : [],
           },
-        });
+        })
       } catch (error: any) {
         res.status(500).json({
           success: false,
           error: error.message,
-        });
+        })
       }
-    });
+    })
 
     this.app.get('/api/discussions/:id', (req: Request, res: Response) => {
-      const clientId = req.headers['x-client-id'] as string;
+      const clientId = req.headers['x-client-id'] as string
       if (!clientId) {
-        return res.status(400).json({ success: false, error: 'X-Client-ID header is required' });
+        return res.status(400).json({ success: false, error: 'X-Client-ID header is required' })
       }
-      const conversation = this.discussionManager.getConversation(clientId, req.params.id);
+      const conversation = this.discussionManager.getConversation(clientId, req.params.id)
 
       if (!conversation) {
         return res.status(404).json({
           success: false,
           error: 'Conversation not found',
-        });
+        })
       }
 
-      res.json({ success: true, data: conversation });
-    });
+      res.json({ success: true, data: conversation })
+    })
 
     this.app.get('/api/discussions', (req: Request, res: Response) => {
-      const clientId = req.headers['x-client-id'] as string;
+      const clientId = req.headers['x-client-id'] as string
       if (!clientId) {
-        return res.status(400).json({ success: false, error: 'X-Client-ID header is required' });
+        return res.status(400).json({ success: false, error: 'X-Client-ID header is required' })
       }
-      const conversations = this.discussionManager.getAllConversations(clientId);
-      res.json({ success: true, data: conversations });
-    });
+      const conversations = this.discussionManager.getAllConversations(clientId)
+      res.json({ success: true, data: conversations })
+    })
 
     this.app.post('/api/discussions/:id/messages', async (req: Request, res: Response) => {
       try {
-        const clientId = req.headers['x-client-id'] as string;
+        const clientId = req.headers['x-client-id'] as string
         if (!clientId) {
-          return res.status(400).json({ success: false, error: 'X-Client-ID header is required' });
+          return res.status(400).json({ success: false, error: 'X-Client-ID header is required' })
         }
-        const { content } = req.body;
+        const { content } = req.body
 
         if (!content) {
           return res.status(400).json({
             success: false,
             error: 'Message content is required',
-          });
+          })
         }
 
         const success = this.discussionManager.addMessage(clientId, req.params.id, {
           role: 'user',
           content,
-        });
+        })
 
         if (!success) {
           return res.status(404).json({
             success: false,
             error: 'Conversation not found',
-          });
+          })
         }
 
-        res.json({ success: true });
+        res.json({ success: true })
       } catch (error: any) {
         res.status(500).json({
           success: false,
           error: error.message,
-        });
+        })
       }
-    });
+    })
 
     this.app.get('/api/knowledge/search', async (req: Request, res: Response) => {
       try {
         // 知识库搜索目前不需要 clientId，因为知识库是全局的，而不是每个用户隔离的。
         // 如果未来有每个用户独立的知识库需求，此处需要添加 clientId 验证。
-        const { q: query, limit = '10' } = req.query;
+        const { q: query, limit = '10' } = req.query
 
         if (!query) {
           return res.status(400).json({
             success: false,
             error: 'Query parameter is required',
-          });
+          })
         }
 
-        const results = await this.knowledgeManager.searchKnowledge(query as string, parseInt(limit as string));
+        const results = await this.knowledgeManager.searchKnowledge(query as string, parseInt(limit as string))
 
-        res.json({ success: true, data: results });
+        res.json({ success: true, data: results })
       } catch (error: any) {
         res.status(500).json({
           success: false,
           error: error.message,
-        });
+        })
       }
-    });
+    })
 
     this.app.get('/api/knowledge/topics', (req: Request, res: Response) => {
       // 知识库话题列表目前不需要 clientId
-      const topics = this.knowledgeManager.getTopicList();
-      res.json({ success: true, data: topics });
-    });
+      const topics = this.knowledgeManager.getTopicList()
+      res.json({ success: true, data: topics })
+    })
 
     this.app.get('/api/knowledge/topics/:topic/summary', async (req: Request, res: Response) => {
       try {
         // 知识库话题摘要目前不需要 clientId
-        const summary = await this.knowledgeManager.generateKnowledgeSummary(req.params.topic);
-        res.json({ success: true, data: { summary } });
+        const summary = await this.knowledgeManager.generateKnowledgeSummary(req.params.topic)
+        res.json({ success: true, data: { summary } })
       } catch (error: any) {
         res.status(500).json({
           success: false,
           error: error.message,
-        });
+        })
       }
-    });
+    })
 
     this.app.get('/api/knowledge/stats', (req: Request, res: Response) => {
       // 知识库统计目前不需要 clientId
-      const stats = this.knowledgeManager.getKnowledgeStats();
-      res.json({ success: true, data: stats });
-    });
+      const stats = this.knowledgeManager.getKnowledgeStats()
+      res.json({ success: true, data: stats })
+    })
 
     this.app.get('/api/knowledge/export', async (req: Request, res: Response) => {
       try {
         // 知识库导出目前不需要 clientId
-        const format = (req.query.format as 'json' | 'markdown') || 'json';
-        const data = await this.knowledgeManager.exportKnowledge(format);
+        const format = (req.query.format as 'json' | 'markdown') || 'json'
+        const data = await this.knowledgeManager.exportKnowledge(format)
 
-        const contentType = format === 'markdown' ? 'text/markdown' : 'application/json';
-        const filename = `knowledge_export_${new Date().getTime()}.${format === 'markdown' ? 'md' : 'json'}`;
+        const contentType = format === 'markdown' ? 'text/markdown' : 'application/json'
+        const filename = `knowledge_export_${new Date().getTime()}.${format === 'markdown' ? 'md' : 'json'}`
 
-        res.setHeader('Content-Type', contentType);
-        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-        res.send(data);
+        res.setHeader('Content-Type', contentType)
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`)
+        res.send(data)
       } catch (error: any) {
         res.status(500).json({
           success: false,
           error: error.message,
-        });
+        })
       }
-    });
+    })
 
     // Add polling endpoint for discussion status
     this.app.get('/api/discussions/:id/status', (req: Request, res: Response) => {
       try {
-        const clientId = req.headers['x-client-id'] as string;
+        const clientId = req.headers['x-client-id'] as string
         if (!clientId) {
-          return res.status(400).json({ success: false, error: 'X-Client-ID header is required' });
+          return res.status(400).json({ success: false, error: 'X-Client-ID header is required' })
         }
-        const conversation = this.discussionManager.getConversation(clientId, req.params.id);
+        const conversation = this.discussionManager.getConversation(clientId, req.params.id)
 
         if (!conversation) {
           return res.status(404).json({
             success: false,
             error: 'Conversation not found',
-          });
+          })
         }
 
         res.json({
@@ -312,44 +312,44 @@ class AIBrainstormServer {
             maxRounds: conversation.maxRounds,
             lastUpdated: conversation.updatedAt,
           },
-        });
+        })
       } catch (error: any) {
         res.status(500).json({
           success: false,
           error: error.message,
-        });
+        })
       }
-    });
+    })
 
     // SPA fallback route
     this.app.get('*', (req: Request, res: Response) => {
       res.sendFile(path.join(this.publicPath, 'index.html'), (err) => {
-        if (err) res.status(404).send('index.html 不存在');
-      });
-    });
+        if (err) res.status(404).send('index.html 不存在')
+      })
+    })
   }
 
   private setupEventListeners(): void {
     this.discussionManager.on('discussionCompleted', async (data: any) => {
       try {
-        await this.knowledgeManager.extractKnowledgeFromConversation(data.conversation);
-        console.log(`Knowledge extracted from conversation: ${data.conversationId}`);
+        await this.knowledgeManager.extractKnowledgeFromConversation(data.conversation)
+        console.log(`Knowledge extracted from conversation: ${data.conversationId}`)
       } catch (error) {
-        console.error('Failed to extract knowledge:', error);
+        console.error('Failed to extract knowledge:', error)
       }
-    });
+    })
   }
 
   public start(port: number = config.port): void {
-    validateConfig();
+    validateConfig()
 
     this.server.listen(port, () => {
-      console.log(`🚀 AI Brainstorm Server started on port ${port}`);
-      console.log(`📊 Available AI providers: ${AIProviderFactory.getAvailableProviders().join(', ')}`);
-      console.log(`📚 Knowledge management system initialized`);
-      console.log(`\n💡 Ready to facilitate multi-AI discussions!`);
-    });
+      console.log(`🚀 AI Brainstorm Server started on port ${port}`)
+      console.log(`📊 Available AI providers: ${AIProviderFactory.getAvailableProviders().join(', ')}`)
+      console.log(`📚 Knowledge management system initialized`)
+      console.log(`\n💡 Ready to facilitate multi-AI discussions!`)
+    })
   }
 }
 
-export default AIBrainstormServer;
+export default AIBrainstormServer

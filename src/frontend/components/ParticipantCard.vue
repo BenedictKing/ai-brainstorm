@@ -1,34 +1,25 @@
 <template>
-  <div 
+  <div
     class="participant-card"
     :class="{ selected, disabled, 'selector-active': showSelector }"
-    @click="handleCardClick"
-  >
+    @click="handleCardClick">
     <div class="badge">{{ role.tags[0] }}</div>
     <h4>{{ role.name }}</h4>
     <p>{{ role.description }}</p>
-    
+
     <div class="ai-model-info" @click.stop>
       <span class="ai-model-label">AI模型:</span>
-      <span 
-        class="ai-model-name" 
-        @click="toggleModelSelector"
-      >
+      <span class="ai-model-name" @click="toggleModelSelector">
         {{ currentModelDisplay }}
       </span>
-      
-      <div 
-        class="model-selector"
-        :class="{ show: showSelector }"
-        :id="`selector-${role.id}`"
-      >
+
+      <div class="model-selector" :class="{ show: showSelector }" :id="`selector-${role.id}`">
         <div
           v-for="provider in enabledProviders"
           :key="provider.name"
           class="model-option"
           :class="{ selected: provider.name === currentProvider }"
-          @click="selectModel(provider.name)"
-        >
+          @click="selectModel(provider.name)">
           <div class="provider-name">
             {{ provider.name.charAt(0).toUpperCase() + provider.name.slice(1) }}
           </div>
@@ -49,8 +40,8 @@ const props = defineProps({
   initialProvider: String, // 新增：从localStorage恢复的provider
   disabled: {
     type: Boolean,
-    default: false
-  }
+    default: false,
+  },
 })
 
 const emit = defineEmits(['toggle', 'update-model'])
@@ -62,7 +53,7 @@ const currentProvider = ref(props.initialProvider || props.role.suggestedProvide
 // 计算属性
 const enabledProviders = computed(() => {
   if (!providers.value) return []
-  return Object.values(providers.value).filter(p => p.enabled)
+  return Object.values(providers.value).filter((p) => p.enabled)
 })
 
 const currentModelDisplay = computed(() => {
@@ -70,13 +61,13 @@ const currentModelDisplay = computed(() => {
   if (provider && provider.enabled) {
     return `${provider.name.charAt(0).toUpperCase() + provider.name.slice(1)} - ${provider.model}`
   }
-  
+
   // 如果当前提供商不可用，使用第一个可用的
   const firstEnabled = enabledProviders.value[0]
   if (firstEnabled) {
     return `${firstEnabled.name.charAt(0).toUpperCase() + firstEnabled.name.slice(1)} - ${firstEnabled.model}`
   }
-  
+
   return '未配置'
 })
 
@@ -89,7 +80,7 @@ const handleCardClick = () => {
 const toggleModelSelector = () => {
   showSelector.value = !showSelector.value
   // 关闭其他选择器
-  document.querySelectorAll('.model-selector').forEach(selector => {
+  document.querySelectorAll('.model-selector').forEach((selector) => {
     if (selector.id !== `selector-${props.role.id}`) {
       selector.classList.remove('show')
     }

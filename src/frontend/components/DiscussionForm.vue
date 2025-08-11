@@ -47,18 +47,10 @@
       </el-form-item>
 
       <el-form-item>
-        <el-button
-          type="primary"
-          size="large"
-          :disabled="!canStartDiscussion"
-          @click="handleStartDiscussion">
+        <el-button type="primary" size="large" :disabled="!canStartDiscussion" @click="handleStartDiscussion">
           开始讨论
         </el-button>
-        <el-button
-          type="default"
-          size="large"
-          @click="handleResetCache"
-          style="margin-left: 12px;">
+        <el-button type="default" size="large" @click="handleResetCache" style="margin-left: 12px">
           <el-icon><Delete /></el-icon>
           重置设置
         </el-button>
@@ -68,13 +60,13 @@
 </template>
 
 <script setup>
-import { ref, computed, inject, onMounted, watch } from 'vue';
-import { Delete } from '@element-plus/icons-vue';
-import ParticipantCard from './ParticipantCard.vue';
-import { STORAGE_KEYS, loadFromStorage, saveToStorage, clearAppStorage, getClientId } from '../utils/storage.js';
+import { ref, computed, inject, onMounted, watch } from 'vue'
+import { Delete } from '@element-plus/icons-vue'
+import ParticipantCard from './ParticipantCard.vue'
+import { STORAGE_KEYS, loadFromStorage, saveToStorage, clearAppStorage, getClientId } from '../utils/storage.js'
 
-const emit = defineEmits(['start-discussion']);
-const providers = inject('providers');
+const emit = defineEmits(['start-discussion'])
+const providers = inject('providers')
 
 // 表单数据 - 从localStorage恢复
 const form = ref(
@@ -82,10 +74,10 @@ const form = ref(
     question: '',
     context: '',
   })
-);
+)
 
-const selectedParticipants = ref(loadFromStorage(STORAGE_KEYS.SELECTED_PARTICIPANTS, []));
-const roleModelMappings = ref(loadFromStorage(STORAGE_KEYS.ROLE_MODEL_MAPPINGS, {}));
+const selectedParticipants = ref(loadFromStorage(STORAGE_KEYS.SELECTED_PARTICIPANTS, []))
+const roleModelMappings = ref(loadFromStorage(STORAGE_KEYS.ROLE_MODEL_MAPPINGS, {}))
 
 // 角色定义
 const roles = ref([
@@ -138,76 +130,76 @@ const roles = ref([
     suggestedProvider: 'grok',
     tags: ['反对', '质疑', '深入思考'],
   },
-]);
+])
 
 // 计算属性
-const firstSpeakerRole = computed(() => roles.value.find((r) => r.id === 'first_speaker'));
-const otherRoles = computed(() => roles.value.filter((r) => r.id !== 'first_speaker'));
+const firstSpeakerRole = computed(() => roles.value.find((r) => r.id === 'first_speaker'))
+const otherRoles = computed(() => roles.value.filter((r) => r.id !== 'first_speaker'))
 
 const canStartDiscussion = computed(() => {
   // 需要至少1个其他参与者
-  return form.value.question.trim() && selectedParticipants.value.length >= 1;
-});
+  return form.value.question.trim() && selectedParticipants.value.length >= 1
+})
 
 // 监听数据变化并保存到localStorage
 watch(
   form,
   (newForm) => {
-    saveToStorage(STORAGE_KEYS.FORM_DATA, newForm);
+    saveToStorage(STORAGE_KEYS.FORM_DATA, newForm)
   },
   { deep: true }
-);
+)
 
 watch(
   selectedParticipants,
   (newParticipants) => {
-    saveToStorage(STORAGE_KEYS.SELECTED_PARTICIPANTS, newParticipants);
+    saveToStorage(STORAGE_KEYS.SELECTED_PARTICIPANTS, newParticipants)
   },
   { deep: true }
-);
+)
 
 watch(
   roleModelMappings,
   (newMappings) => {
-    saveToStorage(STORAGE_KEYS.ROLE_MODEL_MAPPINGS, newMappings);
+    saveToStorage(STORAGE_KEYS.ROLE_MODEL_MAPPINGS, newMappings)
   },
   { deep: true }
-);
+)
 
 // 方法
 const toggleParticipant = (roleId) => {
-  const index = selectedParticipants.value.indexOf(roleId);
+  const index = selectedParticipants.value.indexOf(roleId)
   if (index > -1) {
-    selectedParticipants.value.splice(index, 1);
+    selectedParticipants.value.splice(index, 1)
   } else {
-    selectedParticipants.value.push(roleId);
+    selectedParticipants.value.push(roleId)
   }
-};
+}
 
 const updateRoleModel = (roleId, providerName) => {
-  roleModelMappings.value[roleId] = providerName;
-};
+  roleModelMappings.value[roleId] = providerName
+}
 
 const updateStartButton = () => {
   // 触发响应式更新
-};
+}
 
 const handleStartDiscussion = async () => {
-  if (!canStartDiscussion.value) return;
+  if (!canStartDiscussion.value) return
 
-  const clientId = getClientId();
+  const clientId = getClientId()
 
   // 构建包含角色和模型提供商的详细参与者列表
   const participantDetails = [
-    { 
-      roleId: firstSpeakerRole.value.id, 
-      provider: roleModelMappings.value[firstSpeakerRole.value.id] 
+    {
+      roleId: firstSpeakerRole.value.id,
+      provider: roleModelMappings.value[firstSpeakerRole.value.id],
     },
-    ...selectedParticipants.value.map(id => ({ 
-      roleId: id, 
-      provider: roleModelMappings.value[id] 
-    }))
-  ];
+    ...selectedParticipants.value.map((id) => ({
+      roleId: id,
+      provider: roleModelMappings.value[id],
+    })),
+  ]
 
   try {
     const response = await fetch('/api/discussions', {
@@ -221,73 +213,73 @@ const handleStartDiscussion = async () => {
         context: form.value.context || undefined,
         participants: participantDetails, // 使用新的详细结构
       }),
-    });
+    })
 
-    const result = await response.json();
+    const result = await response.json()
 
     if (result.success) {
       // 保存活跃的讨论状态到 localStorage
-      saveToStorage(STORAGE_KEYS.ACTIVE_DISCUSSION_ID, result.data.conversationId);
-      saveToStorage(STORAGE_KEYS.ACTIVE_DISCUSSION_TITLE, form.value.question);
-      
+      saveToStorage(STORAGE_KEYS.ACTIVE_DISCUSSION_ID, result.data.conversationId)
+      saveToStorage(STORAGE_KEYS.ACTIVE_DISCUSSION_TITLE, form.value.question)
+
       emit('start-discussion', {
         discussionId: result.data.conversationId,
         title: form.value.question,
-      });
+      })
     } else {
-      alert('启动讨论失败: ' + result.error);
+      alert('启动讨论失败: ' + result.error)
     }
   } catch (error) {
-    alert('启动讨论失败: ' + error.message);
+    alert('启动讨论失败: ' + error.message)
   }
-};
+}
 
 // 重置缓存功能
 const handleResetCache = () => {
   if (confirm('确定要清空所有保存的设置吗？这将恢复到默认状态。')) {
-    const success = clearAppStorage();
+    const success = clearAppStorage()
     if (success) {
       // 重置为默认值
-      form.value = { question: '', context: '' };
+      form.value = { question: '', context: '' }
       // 默认选择其他角色中的 critic 和 supporter
-      selectedParticipants.value = ['critic', 'supporter'];
-      roleModelMappings.value = {};
+      selectedParticipants.value = ['critic', 'supporter']
+      roleModelMappings.value = {}
 
       // 重新初始化角色模型映射
       roles.value.forEach((role) => {
-        roleModelMappings.value[role.id] = role.suggestedProvider;
-      });
+        roleModelMappings.value[role.id] = role.suggestedProvider
+      })
 
-      alert('✅ 设置已重置为默认状态');
+      alert('✅ 设置已重置为默认状态')
     } else {
-      alert('❌ 重置失败，请刷新页面重试');
+      alert('❌ 重置失败，请刷新页面重试')
     }
   }
-};
+}
 
 // 初始化默认值（仅在localStorage中没有数据时）
 onMounted(() => {
   // 如果localStorage中没有选中的参与者，设置默认值
   if (selectedParticipants.value.length === 0) {
-    const defaultRoles = ['critic', 'supporter', 'synthesizer'];
-    selectedParticipants.value = defaultRoles.filter((id) => id !== 'first_speaker');
+    const defaultRoles = ['critic', 'supporter', 'synthesizer']
+    selectedParticipants.value = defaultRoles.filter((id) => id !== 'first_speaker')
   } else {
     // 确保 'first_speaker' 不在用户可选的参与者列表中
-    selectedParticipants.value = selectedParticipants.value.filter((id) => id !== 'first_speaker');
+    selectedParticipants.value = selectedParticipants.value.filter((id) => id !== 'first_speaker')
   }
 
   // 初始化角色模型映射（仅为未设置的角色）
   roles.value.forEach((role) => {
     if (!roleModelMappings.value[role.id]) {
-      roleModelMappings.value[role.id] = role.suggestedProvider;
+      roleModelMappings.value[role.id] = role.suggestedProvider
     }
-  });
+  })
 
-  console.log('📦 从localStorage恢复了以下设置:');
-  console.log('- 表单数据:', form.value);
-  console.log('- 选中的参与者:', selectedParticipants.value);
-  console.log('- 角色模型映射:', roleModelMappings.value);
-});
+  console.log('📦 从localStorage恢复了以下设置:')
+  console.log('- 表单数据:', form.value)
+  console.log('- 选中的参与者:', selectedParticipants.value)
+  console.log('- 角色模型映射:', roleModelMappings.value)
+})
 </script>
 
 <style scoped>
