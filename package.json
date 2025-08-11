@@ -6,8 +6,8 @@
   "type": "module",
   "scripts": {
     "start": "node dist/index.js",
-    "dev": "concurrently \"nodemon --watch src --ext ts,js,json --exec 'ts-node src/index.ts'\" \"vite\"",
-    "dev:backend": "nodemon --watch src --ext ts,js,json --exec \"ts-node src/index.ts\"",
+    "dev": "concurrently \"npm:dev:backend\" \"vite\"",
+    "dev:backend": "nodemon --watch src --ext ts,js,json --exec \"node --loader ts-node/esm src/index.ts\"",
     "dev:frontend": "vite",
     "build": "tsc && vite build",
     "postinstall": "npm run build",
@@ -37,6 +37,15 @@
     "vite": "^7.1.1",
     "vue": "3",
     "ws": "^8.14.2"
+  },
+  "ts-node": {
+    "esm": true,
+    "transpileOnly": true,
+    "swc": false,
+    "compilerOptions": {
+      "module": "ESNext",
+      "moduleResolution": "NodeNext"
+    }
   },
   "devDependencies": {
     "@railway/cli": "^4.6.1",
