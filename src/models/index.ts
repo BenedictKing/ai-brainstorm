@@ -1,9 +1,9 @@
-import { OpenAIProvider } from './OpenAIProvider';
-import { ClaudeProvider } from './ClaudeProvider';
-import { GeminiProvider } from './GeminiProvider';
-import { GrokProvider } from './GrokProvider';
-import { BaseAIProvider } from './BaseAIProvider';
-import { config, ProviderConfig } from '../config';
+import { OpenAIProvider } from './OpenAIProvider.js';
+import { ClaudeProvider } from './ClaudeProvider.js';
+import { GeminiProvider } from './GeminiProvider.js';
+import { GrokProvider } from './GrokProvider.js';
+import { BaseAIProvider } from './BaseAIProvider.js';
+import { config, ProviderConfig } from '../config/index.js';
 
 export class AIProviderFactory {
   private static providers: Map<string, BaseAIProvider> = new Map();
@@ -67,7 +67,7 @@ export class AIProviderFactory {
 
   static getAvailableProviders(): string[] {
     return Object.entries(config.apis)
-      .filter(([, providerConfig]) => providerConfig.enabled && providerConfig.apiKey)
+      .filter(([, providerConfig]: [string, ProviderConfig]) => providerConfig.enabled && providerConfig.apiKey)
       .map(([name]) => name);
   }
 
@@ -94,7 +94,7 @@ export class AIProviderFactory {
 
   static getProvidersByFormat(format: 'openai' | 'claude' | 'gemini'): string[] {
     return Object.entries(config.apis)
-      .filter(([, providerConfig]) => 
+      .filter(([, providerConfig]: [string, ProviderConfig]) => 
         providerConfig.enabled && 
         providerConfig.apiKey && 
         providerConfig.format === format

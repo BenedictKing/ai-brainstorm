@@ -2,9 +2,9 @@ import {
   KnowledgeEntry, 
   Conversation, 
   Message 
-} from '../types';
-import { AIProviderFactory } from '../models';
-import { ContextCompressor } from './ContextCompressor';
+} from '../types/index.js';
+import { AIProviderFactory } from '../models/index.js';
+import { ContextCompressor } from './ContextCompressor.js';
 import { v4 as uuidv4 } from 'uuid';
 import * as fs from 'fs/promises';
 import * as path from 'path';
@@ -72,11 +72,11 @@ export class KnowledgeManager {
   }
 
   private formatConversationForExtraction(conversation: Conversation): string {
-    const relevantMessages = conversation.messages.filter(m => 
+    const relevantMessages = conversation.messages.filter((m: Message) => 
       m.role === 'assistant' && m.content.length >= this.config.minContentLength
     );
 
-    return relevantMessages.map((msg, index) => {
+    return relevantMessages.map((msg: Message, index: number) => {
       const participant = msg.metadata?.participantName || msg.model || 'AI';
       return `### 观点 ${index + 1} (${participant}):\n${msg.content}`;
     }).join('\n\n');
@@ -151,9 +151,9 @@ ${content}
   }
 
   private fallbackExtraction(conversation: Conversation): KnowledgeEntry[] {
-    const assistantMessages = conversation.messages.filter(m => m.role === 'assistant');
+    const assistantMessages = conversation.messages.filter((m: Message) => m.role === 'assistant');
     
-    return assistantMessages.slice(0, 5).map(msg => ({
+    return assistantMessages.slice(0, 5).map((msg: Message) => ({
       id: uuidv4(),
       topic: conversation.title,
       content: msg.content.length > 200 
@@ -209,9 +209,9 @@ ${content}
     const queryWords = new Set(query.toLowerCase().split(/\s+/));
     
     const scoredEntries = allEntries.map(entry => {
-      const contentWords = new Set(entry.content.toLowerCase().split(/\s+/));
-      const topicWords = new Set(entry.topic.toLowerCase().split(/\s+/));
-      const tagWords = new Set(entry.tags.join(' ').toLowerCase().split(/\s+/));
+      const contentWords = new Set<string>(entry.content.toLowerCase().split(/\s+/));
+      const topicWords = new Set<string>(entry.topic.toLowerCase().split(/\s+/));
+      const tagWords = new Set<string>(entry.tags.join(' ').toLowerCase().split(/\s+/));
       
       const contentScore = this.calculateSetIntersection(queryWords, contentWords) * 1.0;
       const topicScore = this.calculateSetIntersection(queryWords, topicWords) * 1.5;

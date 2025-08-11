@@ -45,14 +45,15 @@ import { ref, computed, inject, onMounted, onUnmounted } from 'vue'
 const props = defineProps({
   role: Object,
   selected: Boolean,
-  providers: Object
+  providers: Object,
+  initialProvider: String // 新增：从localStorage恢复的provider
 })
 
 const emit = defineEmits(['toggle', 'update-model'])
 
 const providers = inject('providers')
 const showSelector = ref(false)
-const currentProvider = ref(props.role.suggestedProvider)
+const currentProvider = ref(props.initialProvider || props.role.suggestedProvider)
 
 // 计算属性
 const enabledProviders = computed(() => {

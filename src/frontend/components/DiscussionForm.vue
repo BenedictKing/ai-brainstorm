@@ -28,6 +28,7 @@
           :role="role"
           :selected="selectedParticipants.includes(role.id)"
           :providers="providers"
+          :initial-provider="roleModelMappings[role.id]"
           @toggle="toggleParticipant"
           @update-model="updateRoleModel"
         />
@@ -41,24 +42,36 @@
     >
       开始讨论
     </button>
+    
+    <div class="form-actions">
+      <button
+        type="button"
+        class="reset-btn"
+        @click="handleResetCache"
+        title="清空保存的设置，恢复到默认状态"
+      >
+        🗑️ 重置设置
+      </button>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, inject, onMounted } from 'vue'
+import { ref, computed, inject, onMounted, watch } from 'vue'
 import ParticipantCard from './ParticipantCard.vue'
+import { STORAGE_KEYS, loadFromStorage, saveToStorage, clearAppStorage } from '../utils/storage.js'
 
 const emit = defineEmits(['start-discussion'])
 const providers = inject('providers')
 
-// 表单数据
-const form = ref({
+// 表单数据 - 从localStorage恢复
+const form = ref(loadFromStorage(STORAGE_KEYS.FORM_DATA, {
   question: '',
   context: ''
-})
+}))
 
-const selectedParticipants = ref([])
-const roleModelMappings = ref({})
+const selectedParticipants = ref(loadFromStorage(STORAGE_KEYS.SELECTED_PARTICIPANTS, []))
+const roleModelMappings = ref(loadFromStorage(STORAGE_KEYS.ROLE_MODEL_MAPPINGS, {}))
 
 // 角色定义
 const roles = ref([
@@ -111,6 +124,19 @@ const canStartDiscussion = computed(() => {
   return form.value.question.trim() && selectedParticipants.value.length >= 2
 })
 
+// 监听数据变化并保存到localStorage
+watch(form, (newForm) => {
+  saveToStorage(STORAGE_KEYS.FORM_DATA, newForm)
+}, { deep: true })
+
+watch(selectedParticipants, (newParticipants) => {
+  saveToStorage(STORAGE_KEYS.SELECTED_PARTICIPANTS, newParticipants)
+}, { deep: true })
+
+watch(roleModelMappings, (newMappings) => {
+  saveToStorage(STORAGE_KEYS.ROLE_MODEL_MAPPINGS, newMappings)
+}, { deep: true })
+
 // 方法
 const toggleParticipant = (roleId) => {
   const index = selectedParticipants.value.indexOf(roleId)
@@ -160,14 +186,75 @@ const handleStartDiscussion = async () => {
   }
 }
 
-// 初始化默认选择
+// 重置缓存功能
+const handleResetCache = () => {
+  if (confirm('确定要清空所有保存的设置吗？这将恢复到默认状态。')) {
+    const success = clearAppStorage()
+    if (success) {
+      // 重置为默认值
+      form.value = { question: '', context: '' }
+      selectedParticipants.value = ['critic', 'supporter', 'synthesizer']
+      roleModelMappings.value = {}
+      
+      // 重新初始化角色模型映射
+      roles.value.forEach(role => {
+        roleModelMappings.value[role.id] = role.suggestedProvider
+      })
+      
+      alert('✅ 设置已重置为默认状态')
+    } else {
+      alert('❌ 重置失败，请刷新页面重试')
+    }
+  }
+}
+
+// 初始化默认值（仅在localStorage中没有数据时）
 onMounted(() => {
-  const defaultRoles = ['critic', 'supporter', 'synthesizer']
-  selectedParticipants.value = [...defaultRoles]
+  // 如果localStorage中没有选中的参与者，设置默认值
+  if (selectedParticipants.value.length === 0) {
+    const defaultRoles = ['critic', 'supporter', 'synthesizer']
+    selectedParticipants.value = [...defaultRoles]
+  }
   
-  // 初始化角色模型映射
+  // 初始化角色模型映射（仅为未设置的角色）
   roles.value.forEach(role => {
-    roleModelMappings.value[role.id] = role.suggestedProvider
+    if (!roleModelMappings.value[role.id]) {
+      roleModelMappings.value[role.id] = role.suggestedProvider
+    }
   })
+  
+  console.log('📦 从localStorage恢复了以下设置:')
+  console.log('- 表单数据:', form.value)
+  console.log('- 选中的参与者:', selectedParticipants.value)
+  console.log('- 角色模型映射:', roleModelMappings.value)
 })
 </script>
+
+<style scoped>
+.form-actions {
+  margin-top: 12px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.reset-btn {
+  background: none;
+  border: 1px solid #ddd;
+  color: #666;
+  padding: 8px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s ease;
+}
+
+.reset-btn:hover {
+  background: #f5f5f5;
+  border-color: #999;
+  color: #333;
+}
+
+.reset-btn:active {
+  background: #e0e0e0;
+}
+</style>

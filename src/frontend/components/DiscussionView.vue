@@ -31,7 +31,7 @@
 </template>
 
 <script setup>
-import { ref, computed, inject, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, computed, inject, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import MessageItem from './MessageItem.vue'
 import LoadingIndicator from './LoadingIndicator.vue'
 
@@ -43,6 +43,7 @@ const props = defineProps({
 const emit = defineEmits(['back-to-home'])
 
 const ws = inject('ws')
+const isConnected = inject('isConnected')
 const messages = ref([])
 const isLoading = ref(false)
 const nextSpeaker = ref(null)
@@ -60,49 +61,90 @@ const statusText = computed(() => {
 
 // WebSocket 消息处理
 const handleWebSocketMessage = (event) => {
-  const message = JSON.parse(event.data)
+  console.log('📨 Received WebSocket message in DiscussionView:', event.data)
   
-  switch (message.type) {
-    case 'discussion_started':
-      isLoading.value = true
-      if (message.data.participants?.length > 0) {
-        nextSpeaker.value = message.data.participants[0]
-      }
-      break
-      
-    case 'message_received':
-      addMessage(message.data.message)
-      
-      // 检查是否还有下一个参与者
-      const { participantIndex, totalParticipants } = message.data
-      if (participantIndex < totalParticipants - 1) {
-        nextSpeaker.value = getNextSpeakerName(participantIndex + 1)
-      } else {
+  try {
+    const message = JSON.parse(event.data)
+    
+    switch (message.type) {
+      case 'discussion_started':
+        console.log('🚀 Discussion started:', message.data)
+        isLoading.value = true
+        if (message.data.participants?.length > 0) {
+          nextSpeaker.value = message.data.participants[0]
+        }
+        break
+        
+      case 'message_received':
+        console.log('💬 Message received:', message.data)
+        addMessage(message.data.message)
+        
+        // 检查是否还有下一个参与者
+        const { participantIndex, totalParticipants } = message.data
+        if (participantIndex < totalParticipants - 1) {
+          nextSpeaker.value = getNextSpeakerName(participantIndex + 1)
+        } else {
+          isLoading.value = false
+          nextSpeaker.value = null
+        }
+        break
+        
+      case 'round_started':
+        console.log('🔄 Round started:', message.data)
+        addRoundIndicator(message.data.round, message.data.maxRounds)
+        if (message.data.participants?.length > 0) {
+          addDiscussionOrder(message.data.participants)
+        }
+        break
+        
+      case 'discussion_completed':
+        console.log('✅ Discussion completed:', message.data)
+        discussionStatus.value = 'completed'
         isLoading.value = false
         nextSpeaker.value = null
-      }
-      break
-      
-    case 'round_started':
-      addRoundIndicator(message.data.round, message.data.maxRounds)
-      if (message.data.participants?.length > 0) {
-        addDiscussionOrder(message.data.participants)
-      }
-      break
-      
-    case 'discussion_completed':
-      discussionStatus.value = 'completed'
-      isLoading.value = false
-      nextSpeaker.value = null
-      break
-      
-    case 'discussion_error':
-      console.error('Discussion error:', message.data.error)
-      isLoading.value = false
-      nextSpeaker.value = null
-      alert('讨论过程中出现错误: ' + message.data.error)
-      break
+        break
+        
+      case 'discussion_error':
+        console.error('❌ Discussion error:', message.data.error)
+        isLoading.value = false
+        nextSpeaker.value = null
+        alert('讨论过程中出现错误: ' + message.data.error)
+        break
+
+      default:
+        console.log('Unknown message type:', message.type)
+    }
+  } catch (error) {
+    console.error('Failed to parse WebSocket message:', error)
   }
+}
+
+// 监听WebSocket连接状态变化
+watch([ws, isConnected], () => {
+  if (ws.value && isConnected.value) {
+    setupWebSocketListeners()
+  }
+}, { immediate: true })
+
+// 设置WebSocket监听器
+const setupWebSocketListeners = () => {
+  if (!ws.value || !isConnected.value) return
+  
+  console.log('🔗 Setting up WebSocket listeners for discussion:', props.discussionId)
+  
+  // 移除之前的监听器（避免重复）
+  ws.value.removeEventListener('message', handleWebSocketMessage)
+  
+  // 添加新的监听器
+  ws.value.addEventListener('message', handleWebSocketMessage)
+  
+  // 订阅讨论更新
+  ws.value.send(JSON.stringify({
+    type: 'subscribe_discussion',
+    conversationId: props.discussionId
+  }))
+  
+  console.log('✅ WebSocket listeners set up successfully')
 }
 
 // 方法
@@ -149,23 +191,24 @@ const scrollToBottom = () => {
 
 // 生命周期
 onMounted(() => {
-  if (ws.value && ws.value.readyState === WebSocket.OPEN) {
-    ws.value.addEventListener('message', handleWebSocketMessage)
-    
-    // 订阅讨论更新
-    ws.value.send(JSON.stringify({
-      type: 'subscribe_discussion',
-      conversationId: props.discussionId
-    }))
+  console.log('📱 DiscussionView mounted, discussionId:', props.discussionId)
+  
+  // 如果WebSocket已连接，立即设置监听器
+  if (ws.value && isConnected.value) {
+    setupWebSocketListeners()
   }
+  // 否则等待watch回调处理
 })
 
 onUnmounted(() => {
+  console.log('📱 DiscussionView unmounted')
+  
   if (ws.value) {
+    // 移除消息监听器
     ws.value.removeEventListener('message', handleWebSocketMessage)
     
-    // 取消订阅
-    if (props.discussionId) {
+    // 取消订阅（如果连接仍然活跃）
+    if (props.discussionId && ws.value.readyState === WebSocket.OPEN) {
       ws.value.send(JSON.stringify({
         type: 'unsubscribe_discussion',
         conversationId: props.discussionId

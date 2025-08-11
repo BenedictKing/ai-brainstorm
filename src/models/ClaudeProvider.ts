@@ -1,5 +1,5 @@
-import { BaseAIProvider } from "./BaseAIProvider";
-import { Message, AIModel } from "../types/index";
+import { BaseAIProvider } from "./BaseAIProvider.js";
+import { Message, AIModel } from "../types/index.js";
 import Anthropic from "@anthropic-ai/sdk";
 
 export class ClaudeProvider extends BaseAIProvider {

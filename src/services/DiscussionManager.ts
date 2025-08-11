@@ -1,12 +1,12 @@
-import { AIProviderFactory } from '../models';
-import { RoleManager } from './RoleManager';
+import { AIProviderFactory } from '../models/index.js';
+import { RoleManager } from './RoleManager.js';
 import { 
   Conversation, 
   Message, 
   DiscussionTopic, 
   AIParticipant,
   APIResponse 
-} from '../types';
+} from '../types/index.js';
 import { v4 as uuidv4 } from 'uuid';
 import { EventEmitter } from 'events';
 
@@ -109,7 +109,7 @@ export class DiscussionManager extends EventEmitter {
   }
 
   private async runDiscussionRound(conversation: Conversation, conversationId: string): Promise<void> {
-    const activeParticipants = conversation.participants.filter(p => p.isActive);
+    const activeParticipants = conversation.participants.filter((p: AIParticipant) => p.isActive);
     
     // 定义讨论顺序：支持者先发言，然后是其他角色
     const discussionOrder = this.getDiscussionOrder(activeParticipants);
@@ -175,7 +175,7 @@ export class DiscussionManager extends EventEmitter {
 
 
   private buildContextualPrompt(conversation: Conversation, participant: AIParticipant, isFirstSpeaker: boolean): string {
-    const originalQuestion = conversation.messages.find(m => m.role === 'user')?.content || '';
+    const originalQuestion = conversation.messages.find((m: Message) => m.role === 'user')?.content || '';
 
     if (isFirstSpeaker) {
       // Gemini的提示词：作为首个回答者，请全面回答问题
@@ -185,7 +185,7 @@ export class DiscussionManager extends EventEmitter {
 ${originalQuestion}`;
     } else {
       // 其他模型的提示词：基于问题和Gemini的回答进行思辨
-      const firstResponse = conversation.messages.find(m => m.role === 'assistant');
+      const firstResponse = conversation.messages.find((m: Message) => m.role === 'assistant');
       const firstSpeakerName = firstResponse?.metadata?.participantName || '首位发言者';
       const firstAnswer = firstResponse?.content || '（首位发言者未能提供回答）';
 
@@ -204,8 +204,8 @@ ${firstAnswer}
   }
 
   private async collectResponses(conversation: Conversation): Promise<Message[]> {
-    const activeParticipants = conversation.participants.filter(p => p.isActive);
-    const responsePromises = activeParticipants.map(participant => 
+    const activeParticipants = conversation.participants.filter((p: AIParticipant) => p.isActive);
+    const responsePromises = activeParticipants.map((participant: AIParticipant) => 
       this.getParticipantResponse(conversation, participant)
     );
 
@@ -213,10 +213,10 @@ ${firstAnswer}
       const responses = await Promise.allSettled(responsePromises);
       
       return responses
-        .filter((result): result is PromiseFulfilledResult<Message> => 
+        .filter((result: PromiseSettledResult<Message>): result is PromiseFulfilledResult<Message> => 
           result.status === 'fulfilled'
         )
-        .map(result => result.value);
+        .map((result: PromiseFulfilledResult<Message>) => result.value);
     } catch (error) {
       console.error('Error collecting responses:', error);
       return [];
@@ -242,14 +242,18 @@ ${firstAnswer}
       const response = await Promise.race([
         provider.generateResponse(contextMessages, promptToUse),
         new Promise<never>((_, reject) => 
-          setTimeout(() => reject(new Error('Timeout')), this.config.responseTimeout)
+          setTimeout(() => reject(new Error(`Response timeout after ${this.config.responseTimeout}ms`)), this.config.responseTimeout)
         )
       ]);
+
+      if (!response || response.trim().length === 0) {
+        throw new Error(`Empty response from ${participant.name}`);
+      }
 
       return {
         id: uuidv4(),
         role: 'assistant',
-        content: response, // 直接使用AI的回答，不再格式化
+        content: response,
         model: participant.model.provider,
         timestamp: new Date(),
         metadata: {
@@ -259,19 +263,22 @@ ${firstAnswer}
         }
       };
     } catch (error) {
-      console.error(`Error getting response from ${participant.name}:`, error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      console.error(`❌ Error getting response from ${participant.name} (${participant.model.provider}):`, errorMessage);
       
+      // 返回错误消息，但保持讨论继续
       return {
         id: uuidv4(),
         role: 'assistant',
-        content: `[无法获取响应]`,
+        content: `[${participant.name} 暂时无法响应: ${errorMessage}]`,
         model: participant.model.provider,
         timestamp: new Date(),
         metadata: {
           participantId: participant.id,
           participantName: participant.name,
           participantRole: participant.role,
-          error: error instanceof Error ? error.message : 'Unknown error'
+          error: errorMessage,
+          isErrorMessage: true
         }
       };
     }
@@ -331,7 +338,7 @@ ${firstAnswer}
     const conversation = this.activeConversations.get(conversationId);
     if (!conversation) return false;
 
-    const participantIndex = conversation.participants.findIndex(p => p.id === participantId);
+    const participantIndex = conversation.participants.findIndex((p: AIParticipant) => p.id === participantId);
     if (participantIndex === -1) return false;
 
     conversation.participants[participantIndex] = {

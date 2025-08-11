@@ -87,6 +87,23 @@ export const config = {
   database: {
     url: process.env.DATABASE_URL || "sqlite://./data/knowledge.db",
   },
+
+  // 重试配置
+  retry: {
+    maxAttempts: parseInt(process.env.RETRY_MAX_ATTEMPTS || "5"),
+    baseDelay: parseInt(process.env.RETRY_BASE_DELAY || "2000"), // 固定2秒延迟
+    maxDelay: parseInt(process.env.RETRY_MAX_DELAY || "2000"), // 固定2秒延迟  
+    backoffFactor: parseFloat(process.env.RETRY_BACKOFF_FACTOR || "1"), // 不使用指数退避
+    retryableErrors: (process.env.RETRY_ERRORS || 
+      'ECONNABORTED,ENOTFOUND,ECONNREFUSED,ECONNRESET,ETIMEDOUT,Network Error,500,502,503,504,429'
+    ).split(',').map(s => s.trim()),
+  },
+
+  // AI请求配置
+  aiRequest: {
+    timeout: parseInt(process.env.AI_REQUEST_TIMEOUT || "300000"), // 5分钟
+    enableStreamFallback: process.env.AI_STREAM_FALLBACK !== 'false',
+  },
 };
 
 function loadCustomProviders(): Record<string, ProviderConfig> {

@@ -41,11 +41,12 @@ const currentDiscussionId = ref(null)
 const discussionTitle = ref('')
 
 // 组合式函数
-const { ws, connectWebSocket } = useWebSocket()
+const { ws, isConnected, connectWebSocket } = useWebSocket()
 const { providers, loadProviders } = useProviders()
 
 // 提供全局状态
 provide('ws', ws)
+provide('isConnected', isConnected)
 provide('providers', providers)
 
 // 初始化

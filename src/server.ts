@@ -2,12 +2,12 @@ import express, { Request, Response } from 'express';
 import cors from 'cors';
 import { WebSocketServer } from 'ws';
 import { createServer } from 'http';
-import { DiscussionManager } from './services/DiscussionManager';
-import { KnowledgeManager } from './services/KnowledgeManager';
-import { RoleManager } from './services/RoleManager';
-import { AIProviderFactory } from './models';
-import { config, validateConfig } from './config';
-import { DiscussionTopic } from './types';
+import { DiscussionManager } from './services/DiscussionManager.js';
+import { KnowledgeManager } from './services/KnowledgeManager.js';
+import { RoleManager } from './services/RoleManager.js';
+import { AIProviderFactory } from './models/index.js';
+import { config, validateConfig } from './config/index.js';
+import { DiscussionTopic } from './types/index.js';
 import * as path from 'path';
 
 class AIBrainstormServer {
@@ -58,8 +58,8 @@ class AIBrainstormServer {
         availableProviders: AIProviderFactory.getAvailableProviders(),
         providerConfigs: Object.fromEntries(
           Object.entries(AIProviderFactory.getAllProviderConfigs())
-            .filter(([, config]) => config.enabled)
-            .map(([name, config]) => [name, {
+            .filter(([, config]: [string, any]) => config.enabled)
+            .map(([name, config]: [string, any]) => [name, {
               name,
               model: config.model,
               format: config.format,
@@ -72,7 +72,7 @@ class AIBrainstormServer {
 
     this.app.get('/api/providers', (req: Request, res: Response) => {
       const configs = AIProviderFactory.getAllProviderConfigs();
-      const providers = Object.entries(configs).map(([name, config]) => ({
+      const providers = Object.entries(configs).map(([name, config]: [string, any]) => ({
         name,
         model: config.model,
         format: config.format,
@@ -279,14 +279,17 @@ class AIBrainstormServer {
   }
 
   private setupWebSocket(): void {
-    this.wss.on('connection', (ws) => {
-      console.log('New WebSocket connection');
+    this.wss.on('connection', (ws, req) => {
+      const url = req.url || '';
+      console.log(`🔗 New WebSocket connection from: ${req.headers.origin}, path: ${url}`);
       
       ws.on('message', (message) => {
         try {
           const data = JSON.parse(message.toString());
+          console.log(`📨 WebSocket message received:`, data);
           this.handleWebSocketMessage(ws, data);
         } catch (error) {
+          console.error('❌ Invalid WebSocket message format:', error);
           ws.send(JSON.stringify({ 
             type: 'error', 
             message: 'Invalid message format' 
@@ -295,7 +298,11 @@ class AIBrainstormServer {
       });
 
       ws.on('close', () => {
-        console.log('WebSocket connection closed');
+        console.log('🔌 WebSocket connection closed');
+      });
+      
+      ws.on('error', (error) => {
+        console.error('❌ WebSocket error:', error);
       });
     });
   }
@@ -317,28 +324,28 @@ class AIBrainstormServer {
   }
 
   private setupEventListeners(): void {
-    this.discussionManager.on('discussionStarted', (data) => {
+    this.discussionManager.on('discussionStarted', (data: any) => {
       this.broadcastToClients({
         type: 'discussion_started',
         data
       });
     });
 
-    this.discussionManager.on('messageReceived', (data) => {
+    this.discussionManager.on('messageReceived', (data: any) => {
       this.broadcastToClients({
         type: 'message_received',
         data
       }, data.conversationId);
     });
 
-    this.discussionManager.on('roundStarted', (data) => {
+    this.discussionManager.on('roundStarted', (data: any) => {
       this.broadcastToClients({
         type: 'round_started',
         data
       }, data.conversationId);
     });
 
-    this.discussionManager.on('discussionCompleted', async (data) => {
+    this.discussionManager.on('discussionCompleted', async (data: any) => {
       this.broadcastToClients({
         type: 'discussion_completed',
         data
@@ -352,7 +359,7 @@ class AIBrainstormServer {
       }
     });
 
-    this.discussionManager.on('discussionError', (data) => {
+    this.discussionManager.on('discussionError', (data: any) => {
       this.broadcastToClients({
         type: 'discussion_error',
         data

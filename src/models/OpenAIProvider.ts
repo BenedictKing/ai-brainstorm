@@ -1,5 +1,5 @@
-import { BaseAIProvider } from "./BaseAIProvider";
-import { Message, AIModel } from "../types";
+import { BaseAIProvider } from "./BaseAIProvider.js";
+import { Message, AIModel } from "../types/index.js";
 import OpenAI from "openai";
 
 export class OpenAIProvider extends BaseAIProvider {

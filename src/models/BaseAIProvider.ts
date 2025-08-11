@@ -1,18 +1,23 @@
 import axios, { AxiosInstance } from "axios";
-import { Message, AIModel } from "../types";
+import { Message, AIModel } from "../types/index.js";
+import { withRetry, RetryConfig } from "../utils/retry.js";
+import { config } from "../config/index.js";
 
 export abstract class BaseAIProvider {
   protected client: AxiosInstance;
   protected model: AIModel;
+  protected retryConfig: RetryConfig;
 
   constructor(apiKey: string, baseUrl: string, model: AIModel) {
     this.model = model;
+    this.retryConfig = config.retry;
+    
     this.client = axios.create({
       baseURL: baseUrl,
       headers: {
         "Content-Type": "application/json",
       },
-      timeout: 300000,
+      timeout: config.aiRequest.timeout,
     });
 
     this.setupAuth(apiKey);
@@ -27,7 +32,9 @@ export abstract class BaseAIProvider {
     messages: Message[],
     systemPrompt?: string
   ): Promise<string> {
-    try {
+    const context = `${this.model.provider}-${this.model.name}`;
+    
+    return await withRetry(async () => {
       const formattedMessages = this.formatMessages(messages);
       if (systemPrompt) {
         formattedMessages.unshift({
@@ -54,7 +61,7 @@ export abstract class BaseAIProvider {
 
       try {
         // 首先尝试流式请求
-        if (process.env.NODE_ENV === "development") {
+        if (config.aiRequest.enableStreamFallback && process.env.NODE_ENV === "development") {
           console.log(`\n📡 [${this.model.provider}] Trying streaming request...`);
         }
         
@@ -65,17 +72,21 @@ export abstract class BaseAIProvider {
           console.log(`\n✅ [${this.model.provider}] Streaming successful`);
         }
       } catch (streamError: any) {
-        // 流式失败，回退到非流式
-        if (process.env.NODE_ENV === "development") {
-          console.log(`\n⚠️  [${this.model.provider}] Streaming failed, falling back to non-streaming:`, 
-            streamError.message);
-        }
-        
-        response = await this.makeRequest(formattedMessages);
-        parsedResponse = this.parseResponse(response.data);
-        
-        if (process.env.NODE_ENV === "development") {
-          console.log(`\n✅ [${this.model.provider}] Non-streaming successful`);
+        // 流式失败，回退到非流式（如果启用）
+        if (config.aiRequest.enableStreamFallback) {
+          if (process.env.NODE_ENV === "development") {
+            console.log(`\n⚠️  [${this.model.provider}] Streaming failed, falling back to non-streaming:`, 
+              streamError.message);
+          }
+          
+          response = await this.makeRequest(formattedMessages);
+          parsedResponse = this.parseResponse(response.data);
+          
+          if (process.env.NODE_ENV === "development") {
+            console.log(`\n✅ [${this.model.provider}] Non-streaming successful`);
+          }
+        } else {
+          throw streamError;
         }
       }
 
@@ -89,24 +100,13 @@ export abstract class BaseAIProvider {
         });
       }
 
-      return parsedResponse;
-    } catch (error: any) {
-      // 提取核心错误信息
-      let errorMessage = "Unknown error";
-
-      if (error.code === "ECONNABORTED") {
-        errorMessage = "Request timeout";
-      } else if (error.response) {
-        errorMessage = `HTTP ${error.response.status}: ${error.response.statusText}`;
-      } else if (error.message) {
-        errorMessage = error.message;
+      // 验证响应不为空
+      if (!parsedResponse || parsedResponse.trim().length === 0) {
+        throw new Error(`Empty response from ${this.model.provider}`);
       }
 
-      console.error(`Error with ${this.model.provider}: ${errorMessage}`);
-      throw new Error(
-        `AI provider ${this.model.provider} failed: ${errorMessage}`
-      );
-    }
+      return parsedResponse;
+    }, this.retryConfig, context);
   }
 
   private async handleStreamResponse(response: any): Promise<string> {

@@ -1,6 +1,6 @@
-import { Message, ContextCompressionResult } from '../types';
-import { AIProviderFactory } from '../models';
-import { config } from '../config';
+import { Message, ContextCompressionResult } from '../types/index.js';
+import { AIProviderFactory } from '../models/index.js';
+import { config } from '../config/index.js';
 
 export interface CompressionOptions {
   targetLength?: number;
@@ -195,7 +195,7 @@ ${content}
     const assistantMessages = messages.filter(m => m.role === 'assistant');
     return assistantMessages
       .map(m => {
-        const sentences = m.content.split(/[.!?。！？]/).filter(s => s.trim().length > 10);
+        const sentences = m.content.split(/[.!?。！？]/).filter((s: string) => s.trim().length > 10);
         return sentences[0]?.trim();
       })
       .filter(point => point && point.length > 0)

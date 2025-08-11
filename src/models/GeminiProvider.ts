@@ -1,5 +1,5 @@
-import { BaseAIProvider } from "./BaseAIProvider";
-import { Message, AIModel } from "../types/index";
+import { BaseAIProvider } from "./BaseAIProvider.js";
+import { Message, AIModel } from "../types/index.js";
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
 export class GeminiProvider extends BaseAIProvider {
