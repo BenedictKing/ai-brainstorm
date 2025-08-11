@@ -1,10 +1,10 @@
 import { BaseAIProvider } from './BaseAIProvider.js'
 import { Message, AIModel } from '../types/index.js'
-import OpenAI from 'openai'
+// 移除 OpenAI SDK 导入
 
 export class OpenAIProvider extends BaseAIProvider {
   private modelName: string
-  private openai: OpenAI
+  // 移除 openai 成员
 
   constructor(apiKey: string, model = 'gpt-4o', baseUrl = 'https://api.openai.com/v1', providerName = 'openai') {
     const aiModel: AIModel = {
@@ -17,14 +17,10 @@ export class OpenAIProvider extends BaseAIProvider {
 
     super(apiKey, baseUrl, aiModel)
     this.modelName = model
-    this.openai = new OpenAI({
-      apiKey: apiKey,
-      baseURL: baseUrl,
-    })
   }
 
   protected setupAuth(apiKey: string): void {
-    // SDK handles auth automatically
+    this.client.defaults.headers.common['Authorization'] = `Bearer ${apiKey}`
   }
 
   protected formatMessages(messages: Message[]): any[] {
@@ -48,29 +44,35 @@ export class OpenAIProvider extends BaseAIProvider {
   }
 
   protected async makeRequest(messages: any[], systemPrompt?: string): Promise<any> {
+    const endpoint = '/chat/completions'
     const finalMessages = systemPrompt ? [{ role: 'system', content: systemPrompt }, ...messages] : messages
-
-    const completion = await this.openai.chat.completions.create({
+    const body = {
       model: this.modelName,
       messages: finalMessages,
       temperature: 0.7,
       max_tokens: 16384,
-    })
+    }
 
-    return { data: completion }
+    const url = new URL(endpoint, this.client.defaults.baseURL).href
+    console.log(`\n\n${(this.constructor as any).generateCurlCommand(url, 'POST', this.client.defaults.headers.common, body)}\n\n`)
+
+    return this.client.post(endpoint, body)
   }
 
   protected async makeStreamRequest(messages: any[], systemPrompt?: string): Promise<any> {
+    const endpoint = '/chat/completions'
     const finalMessages = systemPrompt ? [{ role: 'system', content: systemPrompt }, ...messages] : messages
-
-    const stream = await this.openai.chat.completions.create({
+    const body = {
       model: this.modelName,
       messages: finalMessages,
       temperature: 0.7,
       max_tokens: 16384,
       stream: true,
-    })
+    }
 
-    return { data: stream }
+    const url = new URL(endpoint, this.client.defaults.baseURL).href
+    console.log(`\n\n${(this.constructor as any).generateCurlCommand(url, 'POST', this.client.defaults.headers.common, body)}\n\n`)
+    
+    return this.client.post(endpoint, body, { responseType: 'stream' })
   }
 }
