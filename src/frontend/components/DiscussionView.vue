@@ -72,21 +72,8 @@ const pollDiscussionStatus = async () => {
       const conversation = result.data
       const isFirstLoad = messages.value.length === 0
 
-      // 检查状态变化
-      if (conversation.status !== discussionStatus.value) {
-        discussionStatus.value = conversation.status
-
-        if (conversation.status === 'completed') {
-          isLoading.value = false
-          nextSpeaker.value = null
-          orderedParticipants.value = []
-          stopPolling()
-        }
-      }
-
-      // 检查新消息
+      // 1. 更新消息列表
       if (conversation.messages && conversation.messages.length > lastMessageCount.value) {
-        // 如果是首次加载，先注入指示性消息
         if (isFirstLoad && conversation.messages.length > 0) {
           addRoundIndicator(conversation.currentRound, conversation.maxRounds)
           addDiscussionOrder(conversation.participants.map((p) => p.name))
@@ -99,20 +86,38 @@ const pollDiscussionStatus = async () => {
         lastMessageCount.value = conversation.messages.length
       }
 
-      // 更新参与者信息
+      // 2. 更新参与者信息
       if (conversation.participants) {
         orderedParticipants.value = conversation.participants
       }
 
+      // 3. 更新加载状态
       // 如果讨论未完成，loading状态取决于是否有下一个发言者
-      if (discussionStatus.value === 'active') {
-        // 暂时在轮询成功后，如果讨论仍在进行中，就假定loading结束，等待新消息触发
+      // 这个逻辑可以保持，或者在讨论完成时强制设为 false
+      if (conversation.status === 'active') {
         isLoading.value = false
+      }
+
+      // 4. 最后，检查讨论是否已完成
+      if (conversation.status !== discussionStatus.value) {
+        discussionStatus.value = conversation.status
+        if (conversation.status === 'completed' || conversation.status === 'error') {
+          console.log(`✅ Discussion ${conversation.status}. Stopping polling.`)
+          isLoading.value = false // 确保完成时移除加载指示器
+          nextSpeaker.value = null
+          orderedParticipants.value = []
+          if (stopPolling) {
+            stopPolling()
+          }
+        }
       }
     }
   } catch (error) {
     console.error('❌ Failed to poll discussion status:', error)
     isLoading.value = false // 出错时停止加载
+    if (stopPolling) {
+      stopPolling()
+    }
   }
 }
 
