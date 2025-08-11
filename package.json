@@ -5,7 +5,7 @@
   "main": "dist/index.js",
   "scripts": {
     "start": "node dist/index.js",
-    "dev": "ts-node src/index.ts",
+    "dev": "ts-node src/index.ts", //这里应该有个watch AI!
     "build": "tsc && npm run copy-public",
     "copy-public": "node -e \"const fs=require('fs'); const path=require('path'); const src='public'; const dest='dist/public'; if(!fs.existsSync('dist')) fs.mkdirSync('dist'); fs.cpSync(src, dest, {recursive: true});\"",
     "test": "jest"
