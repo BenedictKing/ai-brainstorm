@@ -42,7 +42,7 @@ export interface DiscussionTopic {
   id: string;
   question: string;
   context?: string;
-  participants: string[];
+  participants: { roleId: string; provider: string; }[];
   expectedOutputFormat?: string;
 }
 

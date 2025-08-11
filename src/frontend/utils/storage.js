@@ -1,9 +1,12 @@
+import { v4 as uuidv4 } from 'uuid';
+
 // localStorage工具函数
 export const STORAGE_KEYS = {
   FORM_DATA: 'ai-brainstorm-form-data',
   SELECTED_PARTICIPANTS: 'ai-brainstorm-selected-participants',
-  ROLE_MODEL_MAPPINGS: 'ai-brainstorm-role-model-mappings'
-}
+  ROLE_MODEL_MAPPINGS: 'ai-brainstorm-role-model-mappings',
+  CLIENT_ID: 'brainstorm_client_id'
+};
 
 // 从localStorage加载数据
 export const loadFromStorage = (key, defaultValue) => {
@@ -51,3 +54,13 @@ export const getStorageInfo = () => {
   })
   return info
 }
+
+// 获取或创建客户端ID
+export const getClientId = () => {
+  let clientId = localStorage.getItem(STORAGE_KEYS.CLIENT_ID);
+  if (!clientId) {
+    clientId = uuidv4();
+    localStorage.setItem(STORAGE_KEYS.CLIENT_ID, clientId);
+  }
+  return clientId;
+};

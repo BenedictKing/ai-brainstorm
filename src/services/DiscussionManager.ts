@@ -11,7 +11,7 @@ export interface DiscussionConfig {
 }
 
 export class DiscussionManager extends EventEmitter {
-  private activeConversations: Map<string, Conversation> = new Map();
+  private activeConversations: Map<string, Map<string, Conversation>> = new Map();
   private config: DiscussionConfig;
 
   constructor(config: DiscussionConfig = {}) {
@@ -24,37 +24,28 @@ export class DiscussionManager extends EventEmitter {
     };
   }
 
-  async startDiscussion(topic: DiscussionTopic): Promise<string> {
+  private _getUserConversations(clientId: string): Map<string, Conversation> {
+    if (!this.activeConversations.has(clientId)) {
+      this.activeConversations.set(clientId, new Map());
+    }
+    return this.activeConversations.get(clientId)!;
+  }
+
+  async startDiscussion(clientId: string, topic: DiscussionTopic): Promise<string> {
     const conversationId = uuidv4();
+    const userConversations = this._getUserConversations(clientId);
 
-    // 固定的讨论会参与者
-    const discussionProviders = ['gemini', 'claude', 'openai', 'grok'];
-    const availableProviders = AIProviderFactory.getAvailableProviders();
-
-    // 筛选出已启用并配置了API Key的提供商
-    const validProviders = discussionProviders.filter((p) => availableProviders.includes(p));
-
-    if (!validProviders.includes('gemini')) {
-      throw new Error("Gemini provider is not available or configured. It's required for the initial response.");
+    if (!topic.participants || topic.participants.length < 2) {
+      throw new Error('At least two participants are required to start a discussion.');
     }
 
     const aiParticipants: AIParticipant[] = [];
-    const expertRole = RoleManager.getRoleById('expert'); // 使用"领域专家"作为基础角色模板
-    if (!expertRole) {
-      throw new Error("Default 'expert' role not found.");
-    }
-    const firstSpeakerRole = RoleManager.getRoleById('first_speaker');
-    if (!firstSpeakerRole) {
-      throw new Error("Default 'first_speaker' role not found.");
-    }
-
-    for (const provider of validProviders) {
-      const useFirstSpeaker = provider === 'gemini' && firstSpeakerRole;
-      const roleId = useFirstSpeaker ? firstSpeakerRole!.id : expertRole.id;
-      const roleName = useFirstSpeaker ? firstSpeakerRole!.name : expertRole.name;
-
-      const participantName = `${provider.charAt(0).toUpperCase() + provider.slice(1)} (${roleName})`;
-      const participant = RoleManager.createParticipant(roleId, provider, participantName);
+    for (const p of topic.participants) {
+      const roleTemplate = RoleManager.getRoleById(p.roleId);
+      if (!roleTemplate) {
+        throw new Error(`Role template not found for roleId: ${p.roleId}`);
+      }
+      const participant = RoleManager.createParticipant(p.roleId, p.provider, roleTemplate.name); // Pass roleTemplate.name for participant name
       aiParticipants.push(participant);
     }
 
@@ -82,27 +73,28 @@ export class DiscussionManager extends EventEmitter {
       tags: ['discussion', 'panel-mode'],
     };
 
-    this.activeConversations.set(conversationId, conversation);
-    // 在startDiscussion的参数中移除participants
-    this.emit('discussionStarted', { conversationId, topic, participants: aiParticipants });
+    userConversations.set(conversationId, conversation);
+    this.emit('discussionStarted', { clientId, conversationId, topic, participants: aiParticipants });
 
-    this.runDiscussion(conversationId).catch((error) => {
-      this.emit('discussionError', { conversationId, error });
+    this.runDiscussion(clientId, conversationId).catch((error) => {
+      this.emit('discussionError', { clientId, conversationId, error });
     });
 
     return conversationId;
   }
 
-  private async runDiscussion(conversationId: string): Promise<void> {
-    const conversation = this.activeConversations.get(conversationId);
+  private async runDiscussion(clientId: string, conversationId: string): Promise<void> {
+    const userConversations = this._getUserConversations(clientId);
+    const conversation = userConversations.get(conversationId);
     if (!conversation) return;
 
     try {
       // 新的讨论会模式：先让支持者回答，然后其他角色进行思辨
-      await this.runDiscussionRound(conversation, conversationId);
+      await this.runDiscussionRound(conversation, conversationId, clientId);
 
       conversation.status = 'completed';
       this.emit('discussionCompleted', {
+        clientId,
         conversationId,
         conversation,
         totalMessages: conversation.messages.length,
@@ -112,11 +104,15 @@ export class DiscussionManager extends EventEmitter {
         conversation.status = 'error';
       }
       console.error('Discussion failed:', error);
-      this.emit('discussionError', { conversationId, error });
+      this.emit('discussionError', { clientId, conversationId, error });
     }
   }
 
-  private async runDiscussionRound(conversation: Conversation, conversationId: string): Promise<void> {
+  private async runDiscussionRound(
+    conversation: Conversation,
+    conversationId: string,
+    clientId: string
+  ): Promise<void> {
     const activeParticipants = conversation.participants.filter((p: AIParticipant) => p.isActive);
 
     // 定义讨论顺序：支持者先发言，然后是其他角色
@@ -124,6 +120,7 @@ export class DiscussionManager extends EventEmitter {
 
     conversation.currentRound = 1;
     this.emit('roundStarted', {
+      clientId,
       conversationId,
       round: 1,
       maxRounds: 1,
@@ -137,7 +134,7 @@ export class DiscussionManager extends EventEmitter {
     }
 
     // 处理初次发言人的发言，包含重试机制
-    const firstResponse = await this.getFirstSpeakerResponse(conversation, firstSpeaker, conversationId);
+    const firstResponse = await this.getFirstSpeakerResponse(conversation, firstSpeaker, conversationId, clientId);
     if (!firstResponse || firstResponse.metadata?.isErrorMessage) {
       throw new Error('First speaker failed to provide a valid response');
     }
@@ -147,6 +144,7 @@ export class DiscussionManager extends EventEmitter {
 
     if (this.config.enableRealTimeUpdates) {
       this.emit('messageReceived', {
+        clientId,
         conversationId,
         message: firstResponse,
         participantIndex: 0,
@@ -173,6 +171,7 @@ export class DiscussionManager extends EventEmitter {
 
           if (this.config.enableRealTimeUpdates) {
             this.emit('messageReceived', {
+              clientId,
               conversationId,
               message: response,
               participantIndex: i,
@@ -195,7 +194,8 @@ export class DiscussionManager extends EventEmitter {
   private async getFirstSpeakerResponse(
     conversation: Conversation,
     participant: AIParticipant,
-    conversationId: string
+    conversationId: string,
+    clientId: string
   ): Promise<Message | null> {
     const maxAttempts = 3;
     let attempt = 0;
@@ -227,6 +227,7 @@ export class DiscussionManager extends EventEmitter {
           // 发出重试通知
           if (this.config.enableRealTimeUpdates) {
             this.emit('firstSpeakerRetry', {
+              clientId,
               conversationId,
               participantName: participant.name,
               attempt,
@@ -241,6 +242,7 @@ export class DiscussionManager extends EventEmitter {
         // 发出重试通知
         if (this.config.enableRealTimeUpdates) {
           this.emit('firstSpeakerRetry', {
+            clientId,
             conversationId,
             participantName: participant.name,
             attempt,
@@ -430,16 +432,23 @@ ${firstAnswer}
     return question.substring(0, maxLength - 3) + '...';
   }
 
-  getConversation(conversationId: string): Conversation | undefined {
-    return this.activeConversations.get(conversationId);
+  getConversation(clientId: string, conversationId: string): Conversation | undefined {
+    const userConversations = this._getUserConversations(clientId);
+    return userConversations.get(conversationId);
   }
 
-  getAllConversations(): Conversation[] {
-    return Array.from(this.activeConversations.values());
+  getAllConversations(clientId: string): Conversation[] {
+    const userConversations = this._getUserConversations(clientId);
+    return Array.from(userConversations.values());
   }
 
-  updateParticipant(conversationId: string, participantId: string, updates: Partial<AIParticipant>): boolean {
-    const conversation = this.activeConversations.get(conversationId);
+  updateParticipant(
+    clientId: string,
+    conversationId: string,
+    participantId: string,
+    updates: Partial<AIParticipant>
+  ): boolean {
+    const conversation = this.getConversation(clientId, conversationId);
     if (!conversation) return false;
 
     const participantIndex = conversation.participants.findIndex((p: AIParticipant) => p.id === participantId);
@@ -454,8 +463,12 @@ ${firstAnswer}
     return true;
   }
 
-  addMessage(conversationId: string, message: Omit<Message, 'id' | 'timestamp'>): boolean {
-    const conversation = this.activeConversations.get(conversationId);
+  addMessage(
+    clientId: string,
+    conversationId: string,
+    message: Omit<Message, 'id' | 'timestamp'>
+  ): boolean {
+    const conversation = this.getConversation(clientId, conversationId);
     if (!conversation) return false;
 
     const newMessage: Message = {
@@ -467,15 +480,15 @@ ${firstAnswer}
     conversation.messages.push(newMessage);
     conversation.updatedAt = new Date();
 
-    this.emit('messageAdded', { conversationId, message: newMessage });
+    this.emit('messageAdded', { clientId, conversationId, message: newMessage });
     return true;
   }
 
-  stopDiscussion(conversationId: string): boolean {
-    const conversation = this.activeConversations.get(conversationId);
+  stopDiscussion(clientId: string, conversationId: string): boolean {
+    const conversation = this.getConversation(clientId, conversationId);
     if (!conversation) return false;
 
-    this.emit('discussionStopped', { conversationId });
+    this.emit('discussionStopped', { clientId, conversationId });
     return true;
   }
 }

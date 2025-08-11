@@ -1,11 +1,17 @@
 import { ref } from 'vue'
+import { getClientId } from '../utils/storage.js'
 
 export function useProviders() {
   const providers = ref({})
 
   const loadProviders = async () => {
     try {
-      const response = await fetch('/api/providers')
+      const clientId = getClientId()
+      const response = await fetch('/api/providers', {
+        headers: {
+          'X-Client-ID': clientId,
+        },
+      })
       const result = await response.json()
       
       if (result.success) {

@@ -57,7 +57,7 @@
 <script setup>
 import { ref, computed, inject, onMounted, watch } from 'vue';
 import ParticipantCard from './ParticipantCard.vue';
-import { STORAGE_KEYS, loadFromStorage, saveToStorage, clearAppStorage } from '../utils/storage.js';
+import { STORAGE_KEYS, loadFromStorage, saveToStorage, clearAppStorage, getClientId } from '../utils/storage.js';
 
 const emit = defineEmits(['start-discussion']);
 const providers = inject('providers');
@@ -181,19 +181,31 @@ const updateStartButton = () => {
 const handleStartDiscussion = async () => {
   if (!canStartDiscussion.value) return;
 
-  // 确保 first_speaker 包含在内
-  const allParticipants = [firstSpeakerRole.value.id, ...selectedParticipants.value];
+  const clientId = getClientId();
+
+  // 构建包含角色和模型提供商的详细参与者列表
+  const participantDetails = [
+    { 
+      roleId: firstSpeakerRole.value.id, 
+      provider: roleModelMappings.value[firstSpeakerRole.value.id] 
+    },
+    ...selectedParticipants.value.map(id => ({ 
+      roleId: id, 
+      provider: roleModelMappings.value[id] 
+    }))
+  ];
 
   try {
     const response = await fetch('/api/discussions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'X-Client-ID': clientId,
       },
       body: JSON.stringify({
         question: form.value.question,
         context: form.value.context || undefined,
-        participants: allParticipants,
+        participants: participantDetails, // 使用新的详细结构
       }),
     });
 

@@ -31,6 +31,7 @@
 import { ref, computed, inject, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import MessageItem from './MessageItem.vue'
 import LoadingIndicator from './LoadingIndicator.vue'
+import { getClientId } from '../utils/storage.js'
 
 const props = defineProps({
   discussionId: String,
@@ -62,7 +63,12 @@ const statusText = computed(() => {
 // HTTP轮询函数
 const pollDiscussionStatus = async () => {
   try {
-    const response = await fetch(`/api/discussions/${props.discussionId}/status`)
+    const clientId = getClientId();
+    const response = await fetch(`/api/discussions/${props.discussionId}/status`, {
+      headers: {
+        'X-Client-ID': clientId,
+      },
+    });
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`)
     }
