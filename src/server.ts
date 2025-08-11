@@ -268,6 +268,13 @@ class AIBrainstormServer {
         });
       }
     });
+
+    // SPA fallback route
+    this.app.get('*', (req: Request, res: Response) => {
+      res.sendFile(path.resolve(process.cwd(), 'public', 'index.html'), err => {
+        if (err) res.status(404).send('index.html 不存在');
+      });
+    });
   }
 
   private setupWebSocket(): void {
