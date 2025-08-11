@@ -1,5 +1,5 @@
 import axios, { AxiosInstance } from 'axios';
-import { Message, AIModel } from '../types/index.js';
+import { Message, AIModel } from '../types';
 
 export abstract class BaseAIProvider {
   protected client: AxiosInstance;

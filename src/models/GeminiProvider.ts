@@ -1,21 +1,23 @@
-import { BaseAIProvider } from './BaseAIProvider.js';
-import { Message, AIModel } from '../types/index.js';
+import { BaseAIProvider } from "./BaseAIProvider";
+import { Message, AIModel } from "../types/index";
 
 export class GeminiProvider extends BaseAIProvider {
   private modelName: string;
 
   constructor(
-    apiKey: string, 
-    model = 'gemini-pro', 
-    baseUrl = 'https://generativelanguage.googleapis.com/v1beta',
-    providerName = 'gemini'
+    apiKey: string,
+    model = "gemini-2.5-pro",
+    baseUrl = "https://generativelanguage.googleapis.com/v1beta",
+    providerName = "gemini"
   ) {
     const aiModel: AIModel = {
       id: `${providerName}-${model}`,
-      name: `${providerName.charAt(0).toUpperCase() + providerName.slice(1)} (${model})`,
-      provider: 'gemini',
+      name: `${
+        providerName.charAt(0).toUpperCase() + providerName.slice(1)
+      } (${model})`,
+      provider: "gemini",
       maxTokens: 32768,
-      supportedFeatures: ['chat', 'reasoning', 'multimodal']
+      supportedFeatures: ["chat", "reasoning", "multimodal"],
     };
 
     super(apiKey, baseUrl, aiModel);
@@ -28,20 +30,20 @@ export class GeminiProvider extends BaseAIProvider {
 
   protected formatMessages(messages: Message[]): any[] {
     const contents = [];
-    let currentRole = '';
+    let currentRole = "";
     let currentParts: any[] = [];
 
     for (const msg of messages) {
-      const role = msg.role === 'assistant' ? 'model' : 'user';
-      
+      const role = msg.role === "assistant" ? "model" : "user";
+
       if (role !== currentRole && currentParts.length > 0) {
         contents.push({
           role: currentRole,
-          parts: currentParts
+          parts: currentParts,
         });
         currentParts = [];
       }
-      
+
       currentRole = role;
       currentParts.push({ text: msg.content });
     }
@@ -49,7 +51,7 @@ export class GeminiProvider extends BaseAIProvider {
     if (currentParts.length > 0) {
       contents.push({
         role: currentRole,
-        parts: currentParts
+        parts: currentParts,
       });
     }
 
@@ -57,7 +59,7 @@ export class GeminiProvider extends BaseAIProvider {
   }
 
   protected parseResponse(response: any): string {
-    return response.candidates[0]?.content?.parts[0]?.text || '';
+    return response.candidates[0]?.content?.parts[0]?.text || "";
   }
 
   protected async makeRequest(messages: any[]): Promise<any> {
@@ -65,8 +67,8 @@ export class GeminiProvider extends BaseAIProvider {
       contents: messages,
       generationConfig: {
         temperature: 0.7,
-        maxOutputTokens: 2000
-      }
+        maxOutputTokens: 2000,
+      },
     });
   }
 }

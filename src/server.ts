@@ -8,6 +8,7 @@ import { RoleManager } from './services/RoleManager';
 import { AIProviderFactory } from './models';
 import { config, validateConfig } from './config';
 import { DiscussionTopic } from './types';
+import * as path from 'path';
 
 class AIBrainstormServer {
   private app: express.Application;
@@ -38,7 +39,14 @@ class AIBrainstormServer {
   private setupMiddleware(): void {
     this.app.use(cors());
     this.app.use(express.json());
-    this.app.use(express.static('public'));
+    
+    // 使用相对于当前工作目录的路径
+    const publicPath = process.env.NODE_ENV === 'production' 
+      ? path.join(__dirname, 'public')  // 构建后public目录被复制到dist/public
+      : 'public';  // 开发环境直接使用项目根目录的public
+    
+    console.log(`📁 Serving static files from: ${path.resolve(publicPath)}`);
+    this.app.use(express.static(publicPath));
   }
 
   private setupRoutes(): void {

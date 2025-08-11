@@ -2,9 +2,9 @@ import {
   KnowledgeEntry, 
   Conversation, 
   Message 
-} from '../types/index.js';
-import { AIProviderFactory } from '../models/index.js';
-import { ContextCompressor } from './ContextCompressor.js';
+} from '../types';
+import { AIProviderFactory } from '../models';
+import { ContextCompressor } from './ContextCompressor';
 import { v4 as uuidv4 } from 'uuid';
 import * as fs from 'fs/promises';
 import * as path from 'path';

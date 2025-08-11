@@ -1,6 +1,6 @@
-import { Message, ContextCompressionResult } from '../types/index.js';
-import { AIProviderFactory } from '../models/index.js';
-import { config } from '../config/index.js';
+import { Message, ContextCompressionResult } from '../types';
+import { AIProviderFactory } from '../models';
+import { config } from '../config';
 
 export interface CompressionOptions {
   targetLength?: number;

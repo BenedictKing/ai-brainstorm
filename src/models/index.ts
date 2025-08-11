@@ -1,9 +1,9 @@
-import { OpenAIProvider } from './OpenAIProvider.js';
-import { ClaudeProvider } from './ClaudeProvider.js';
-import { GeminiProvider } from './GeminiProvider.js';
-import { GrokProvider } from './GrokProvider.js';
-import { BaseAIProvider } from './BaseAIProvider.js';
-import { config, ProviderConfig } from '../config/index.js';
+import { OpenAIProvider } from './OpenAIProvider';
+import { ClaudeProvider } from './ClaudeProvider';
+import { GeminiProvider } from './GeminiProvider';
+import { GrokProvider } from './GrokProvider';
+import { BaseAIProvider } from './BaseAIProvider';
+import { config, ProviderConfig } from '../config';
 
 export class AIProviderFactory {
   private static providers: Map<string, BaseAIProvider> = new Map();

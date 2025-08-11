@@ -1,4 +1,4 @@
-import { AIParticipant } from '../types/index.js';
+import { AIParticipant } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 
 export interface RoleTemplate {

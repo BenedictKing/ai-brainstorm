@@ -1,15 +1,15 @@
 # AI 智能讨论平台
 
-一个支持多种大模型API的智能讨论平台，可以让多个AI模型在同一对话中扮演不同角色，进行深度讨论和思辨。
+一个支持多种大模型 API 的智能讨论平台，可以让多个 AI 模型在同一对话中扮演不同角色，进行深度讨论和思辨。
 
 ## ✨ 主要功能
 
-- **多模型API支持**：集成 OpenAI GPT、Claude、Gemini、Grok 等主流AI模型
-- **角色化讨论**：预设6种讨论角色（批判者、支持者、综合者、创新者、专家、魔鬼代言人）
-- **实时讨论**：WebSocket支持实时消息推送和讨论状态更新
+- **多模型 API 支持**：集成 OpenAI GPT、Claude、Gemini、Grok 等主流 AI 模型
+- **角色化讨论**：预设 6 种讨论角色（批判者、支持者、综合者、创新者、专家、魔鬼代言人）
+- **实时讨论**：WebSocket 支持实时消息推送和讨论状态更新
 - **智能压缩**：自动压缩长对话上下文，保持讨论效率
 - **知识库管理**：自动提取和汇总讨论中的知识点
-- **Web界面**：直观易用的网页界面
+- **Web 界面**：直观易用的网页界面
 
 ## 🚀 快速开始
 
@@ -19,7 +19,7 @@
 bun install
 ```
 
-### 2. 配置API密钥
+### 2. 配置 API 密钥
 
 复制环境变量模板：
 
@@ -27,11 +27,13 @@ bun install
 cp .env.example .env
 ```
 
-编辑 `.env` 文件，添加你的API密钥。系统支持以下配置方式：
+编辑 `.env` 文件，添加你的 API 密钥。系统支持以下配置方式：
 
 #### 基础配置
-每个AI提供商都可以自定义：
-- `API_KEY`: API密钥
+
+每个 AI 提供商都可以自定义：
+
+- `API_KEY`: API 密钥
 - `BASE_URL`: 接口地址
 - `MODEL`: 使用的模型名称
 - `FORMAT`: 接口格式(openai/claude/gemini)
@@ -40,17 +42,17 @@ cp .env.example .env
 # OpenAI 配置
 OPENAI_API_KEY=your_openai_api_key_here
 OPENAI_BASE_URL=https://api.openai.com/v1
-OPENAI_MODEL=gpt-4
+OPENAI_MODEL=gpt-5
 
-# Claude 配置  
+# Claude 配置
 CLAUDE_API_KEY=your_claude_api_key_here
 CLAUDE_BASE_URL=https://api.anthropic.com/v1
-CLAUDE_MODEL=claude-3-sonnet-20240229
+CLAUDE_MODEL=claude-4-sonnet
 
 # Gemini 配置
 GEMINI_API_KEY=your_gemini_api_key_here
 GEMINI_BASE_URL=https://generativelanguage.googleapis.com/v1beta
-GEMINI_MODEL=gemini-pro
+GEMINI_MODEL=gemini-2.5-pro
 
 # Grok 配置 (使用OpenAI兼容格式)
 GROK_API_KEY=your_grok_api_key_here
@@ -60,7 +62,8 @@ GROK_FORMAT=openai
 ```
 
 #### 自定义提供商
-支持添加无限数量的自定义AI提供商：
+
+支持添加无限数量的自定义 AI 提供商：
 
 ```env
 # 格式: CUSTOM_PROVIDER_<NAME>_<FIELD>
@@ -83,18 +86,21 @@ CUSTOM_PROVIDER_DEEPSEEK_FORMAT=openai
 ```
 
 #### 支持的接口格式
-- **openai**: 兼容OpenAI ChatGPT API格式的服务
-- **claude**: Anthropic Claude API格式 
-- **gemini**: Google Gemini API格式
+
+- **openai**: 兼容 OpenAI ChatGPT API 格式的服务
+- **claude**: Anthropic Claude API 格式
+- **gemini**: Google Gemini API 格式
 
 ### 3. 启动服务
 
 开发模式：
+
 ```bash
 bun dev
 ```
 
 生产模式：
+
 ```bash
 bun start
 ```
@@ -106,8 +112,8 @@ bun start
 ## 🎯 使用方法
 
 1. **输入讨论话题**：在主页面输入你想讨论的问题
-2. **选择参与角色**：从6种预设角色中选择至少2个参与讨论
-3. **开始讨论**：点击开始按钮，AI们将开始多轮讨论
+2. **选择参与角色**：从 6 种预设角色中选择至少 2 个参与讨论
+3. **开始讨论**：点击开始按钮，AI 们将开始多轮讨论
 4. **查看结果**：讨论结束后自动提取知识点到知识库
 
 ## 🤖 预设角色
@@ -169,9 +175,9 @@ data/
 
 ```typescript
 const discussionManager = new DiscussionManager({
-  maxRounds: 5,           // 最大讨论轮数
+  maxRounds: 5, // 最大讨论轮数
   responseTimeout: 45000, // 响应超时时间(ms)
-  enableRealTimeUpdates: true  // 是否启用实时更新
+  enableRealTimeUpdates: true, // 是否启用实时更新
 });
 ```
 
@@ -179,16 +185,17 @@ const discussionManager = new DiscussionManager({
 
 ```typescript
 const customRole = RoleManager.addCustomRole({
-  name: '自定义角色',
-  description: '角色描述',
-  systemPrompt: '系统提示词',
-  tags: ['标签1', '标签2']
+  name: "自定义角色",
+  description: "角色描述",
+  systemPrompt: "系统提示词",
+  tags: ["标签1", "标签2"],
 });
 ```
 
 ## 📊 知识管理
 
 系统会自动：
+
 - 从讨论中提取有价值的知识点
 - 按话题分类整理
 - 去重和相似性检测
@@ -197,7 +204,8 @@ const customRole = RoleManager.addCustomRole({
 
 ## 🌐 WebSocket 事件
 
-客户端可以监听以下WebSocket事件：
+客户端可以监听以下 WebSocket 事件：
+
 - `discussion_started` - 讨论开始
 - `message_received` - 收到新消息
 - `round_started` - 新一轮讨论开始
@@ -209,7 +217,7 @@ const customRole = RoleManager.addCustomRole({
 1. 设置环境变量
 2. 使用 PM2 或类似工具管理进程
 3. 配置反向代理（Nginx）
-4. 启用HTTPS
+4. 启用 HTTPS
 5. 设置日志轮转
 
 ## 📝 开发说明
@@ -222,9 +230,9 @@ const customRole = RoleManager.addCustomRole({
 
 ## ⚠️ 注意事项
 
-1. 需要有效的AI服务API密钥
-2. 不同API有不同的调用限制和计费方式
-3. 长时间讨论可能产生较多token消耗
+1. 需要有效的 AI 服务 API 密钥
+2. 不同 API 有不同的调用限制和计费方式
+3. 长时间讨论可能产生较多 token 消耗
 4. 建议在生产环境中设置适当的速率限制
 
 ## 🤝 贡献指南

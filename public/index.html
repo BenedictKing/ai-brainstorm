@@ -1,0 +1,1034 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 智能讨论平台</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            color: white;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.2rem;
+            opacity: 0.9;
+        }
+
+        .main-content {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.15), 0 0 0 1px rgba(255,255,255,0.1);
+        }
+
+        .discussion-form {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 2px dashed #cbd5e1;
+            border-radius: 10px;
+            background: rgba(248, 250, 252, 0.5);
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #1e293b;
+        }
+
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus,
+        .form-group textarea:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #0ea5e9;
+            box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1);
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        .participants-selector {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-top: 10px;
+        }
+
+        .participant-card {
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+            position: relative;
+        }
+
+        .participant-card:hover {
+            border-color: #0ea5e9;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(14, 165, 233, 0.15);
+        }
+
+        .participant-card.selected {
+            border-color: #0ea5e9;
+            background: linear-gradient(135deg, rgba(14, 165, 233, 0.1) 0%, rgba(56, 189, 248, 0.05) 100%);
+        }
+
+        .participant-card h4 {
+            color: #0ea5e9;
+            margin-bottom: 5px;
+        }
+
+        .participant-card p {
+            font-size: 12px;
+            color: #666;
+            line-height: 1.4;
+        }
+
+        .participant-card .badge {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 10px;
+        }
+
+        .ai-model-info {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px solid #e2e8f0;
+        }
+
+        .ai-model-label {
+            font-size: 11px;
+            color: #64748b;
+            font-weight: 500;
+        }
+
+        .ai-model-name {
+            font-size: 11px;
+            color: #0ea5e9;
+            font-weight: 600;
+            background: rgba(14, 165, 233, 0.1);
+            padding: 2px 6px;
+            border-radius: 6px;
+        }
+
+        .start-btn {
+            background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            width: 100%;
+            box-shadow: 0 4px 15px rgba(14, 165, 233, 0.2);
+        }
+
+        .start-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(14, 165, 233, 0.3);
+        }
+
+        .start-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .discussion-container {
+            margin-top: 30px;
+            display: none;
+        }
+
+        .discussion-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+
+        .back-home-btn {
+            background: rgba(248, 250, 252, 0.9);
+            color: #0ea5e9;
+            border: 2px solid #cbd5e1;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .back-home-btn:hover {
+            background: #0ea5e9;
+            color: white;
+            border-color: #0ea5e9;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(14, 165, 233, 0.2);
+        }
+
+        .discussion-title {
+            font-size: 1.5rem;
+            color: #333;
+        }
+
+        .discussion-status {
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 12px;
+        }
+
+        .status-active {
+            background: #e8f5e8;
+            color: #2e7d32;
+        }
+
+        .status-completed {
+            background: #e3f2fd;
+            color: #1976d2;
+        }
+
+        .messages-container {
+            max-height: 600px;
+            overflow-y: auto;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 15px;
+            margin-bottom: 20px;
+        }
+
+        .message {
+            margin-bottom: 20px;
+            padding: 15px;
+            border-radius: 15px;
+            position: relative;
+        }
+
+        .message.user {
+            background: #e3f2fd;
+            margin-left: 50px;
+        }
+
+        .message.assistant {
+            background: white;
+            margin-right: 50px;
+            border-left: 4px solid #0ea5e9;
+        }
+
+        .message-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .message-author {
+            font-weight: 600;
+            color: #0ea5e9;
+        }
+
+        .message-time {
+            font-size: 12px;
+            color: #888;
+        }
+
+        .message-content {
+            line-height: 1.6;
+        }
+
+        .message-content h1,
+        .message-content h2,
+        .message-content h3,
+        .message-content h4,
+        .message-content h5,
+        .message-content h6 {
+            color: #1e293b;
+            margin: 16px 0 8px 0;
+            font-weight: 600;
+        }
+
+        .message-content h1 { font-size: 1.5rem; }
+        .message-content h2 { font-size: 1.3rem; }
+        .message-content h3 { font-size: 1.1rem; }
+
+        .message-content p {
+            margin: 8px 0;
+        }
+
+        .message-content ul,
+        .message-content ol {
+            margin: 8px 0;
+            padding-left: 20px;
+        }
+
+        .message-content li {
+            margin: 4px 0;
+        }
+
+        .message-content blockquote {
+            margin: 12px 0;
+            padding: 12px 16px;
+            border-left: 4px solid #0ea5e9;
+            background: rgba(14, 165, 233, 0.05);
+            border-radius: 0 4px 4px 0;
+        }
+
+        .message-content code {
+            background: #f1f5f9;
+            padding: 2px 4px;
+            border-radius: 3px;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 0.9em;
+            color: #0ea5e9;
+        }
+
+        .message-content pre {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            padding: 16px;
+            overflow-x: auto;
+            margin: 12px 0;
+        }
+
+        .message-content pre code {
+            background: none;
+            padding: 0;
+            color: #334155;
+        }
+
+        .message-content strong {
+            font-weight: 600;
+            color: #1e293b;
+        }
+
+        .message-content em {
+            font-style: italic;
+            color: #64748b;
+        }
+
+        .message-content a {
+            color: #0ea5e9;
+            text-decoration: none;
+        }
+
+        .message-content a:hover {
+            text-decoration: underline;
+        }
+
+        .message-content table {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 12px 0;
+        }
+
+        .message-content th,
+        .message-content td {
+            border: 1px solid #e2e8f0;
+            padding: 8px 12px;
+            text-align: left;
+        }
+
+        .message-content th {
+            background: #f8fafc;
+            font-weight: 600;
+        }
+
+        .loading {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            color: #0ea5e9;
+            background: linear-gradient(135deg, rgba(14, 165, 233, 0.05) 0%, rgba(56, 189, 248, 0.02) 100%);
+            border-radius: 15px;
+            margin: 10px 0;
+            border: 1px solid rgba(14, 165, 233, 0.1);
+        }
+
+        .loading-content {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .loading-spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid #0ea5e9;
+            border-top: 2px solid transparent;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        .loading-text {
+            font-weight: 500;
+        }
+
+        .loading-role {
+            font-size: 12px;
+            color: #888;
+            margin-top: 5px;
+            font-style: italic;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .round-indicator {
+            text-align: center;
+            margin: 20px 0;
+            padding: 10px;
+            background: #fff3cd;
+            border-radius: 10px;
+            font-weight: 600;
+            color: #856404;
+        }
+
+        .knowledge-panel {
+            margin-top: 30px;
+            padding: 20px;
+            background: linear-gradient(135deg, rgba(14, 165, 233, 0.05) 0%, rgba(56, 189, 248, 0.02) 100%);
+            border-radius: 15px;
+            border-left: 4px solid #0ea5e9;
+        }
+
+        .knowledge-panel h3 {
+            color: #0ea5e9;
+            margin-bottom: 15px;
+        }
+
+        .knowledge-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            text-align: center;
+            padding: 15px;
+            background: white;
+            border-radius: 10px;
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #0ea5e9;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+
+            .header h1 {
+                font-size: 2rem;
+            }
+
+            .main-content {
+                padding: 20px;
+            }
+
+            .participants-selector {
+                grid-template-columns: 1fr;
+            }
+
+            .message {
+                margin-left: 0;
+                margin-right: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🤖 AI 智能讨论平台</h1>
+            <p>让多个AI模型围绕你的问题进行深度讨论</p>
+        </div>
+
+        <div class="main-content">
+            <div id="form-section" class="discussion-form">
+                <div class="form-group">
+                    <label for="question">讨论话题 *</label>
+                    <textarea id="question" placeholder="请输入你想讨论的问题或话题..."></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="context">背景信息 (可选)</label>
+                    <textarea id="context" placeholder="提供相关背景信息，帮助AI更好地理解话题..."></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label>选择参与讨论的AI角色 (至少选择2个)</label>
+                    <div id="participants-selector" class="participants-selector">
+                        <!-- 将由JavaScript动态填充 -->
+                    </div>
+                </div>
+
+                <button id="start-btn" class="start-btn" disabled>开始讨论</button>
+            </div>
+
+            <div id="discussion-section" class="discussion-container">
+                <div class="discussion-header">
+                    <h2 id="discussion-title" class="discussion-title"></h2>
+                    <div style="display: flex; align-items: center; gap: 15px;">
+                        <button id="back-home-btn" class="back-home-btn">
+                            ← 返回首页
+                        </button>
+                        <div id="discussion-status" class="discussion-status status-active">进行中</div>
+                    </div>
+                </div>
+
+                <div id="messages-container" class="messages-container">
+                    <!-- 消息将在这里动态添加 -->
+                </div>
+
+                <div id="loading-indicator" class="loading" style="display: none;">
+                    <div class="loading-content">
+                        <div class="loading-spinner"></div>
+                        <span class="loading-text">正在等待AI回复...</span>
+                    </div>
+                    <div id="loading-role" class="loading-role"></div>
+                </div>
+            </div>
+
+            <div id="knowledge-section" class="knowledge-panel" style="display: none;">
+                <h3>📚 知识库统计</h3>
+                <div id="knowledge-stats" class="knowledge-stats">
+                    <!-- 统计信息将由JavaScript填充 -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/marked@5.1.1/marked.min.js"></script>
+    <script>
+        let ws = null;
+        let currentDiscussionId = null;
+        let selectedParticipants = [];
+        let currentRound = 0;
+        let nextSpeakerIndex = 0;
+        let availableProviders = {}; // 存储从API获取的提供商配置
+
+        const roles = [
+            {
+                id: 'critic',
+                name: '批判性思考者',
+                description: '专门找出观点中的漏洞和不足，提出质疑和反驳',
+                suggestedProvider: 'claude',
+                tags: ['批判', '分析', '逻辑']
+            },
+            {
+                id: 'supporter',
+                name: '支持者',
+                description: '寻找观点中的亮点和价值，提供支持和扩展',
+                suggestedProvider: 'gemini',
+                tags: ['支持', '扩展', '建设性']
+            },
+            {
+                id: 'synthesizer',
+                name: '综合者',
+                description: '整合不同观点，寻找共同点和平衡方案',
+                suggestedProvider: 'openai',
+                tags: ['综合', '平衡', '调和']
+            },
+            {
+                id: 'innovator',
+                name: '创新者',
+                description: '提出新颖的观点和创意解决方案',
+                suggestedProvider: 'grok',
+                tags: ['创新', '创意', '突破']
+            },
+            {
+                id: 'expert',
+                name: '领域专家',
+                description: '基于专业知识提供权威观点',
+                suggestedProvider: 'claude',
+                tags: ['专业', '权威', '准确']
+            },
+            {
+                id: 'devil_advocate',
+                name: '魔鬼代言人',
+                description: '故意提出反对意见，激发更深入的思考',
+                suggestedProvider: 'grok',
+                tags: ['反对', '质疑', '深入思考']
+            }
+        ];
+
+        async function loadProviders() {
+            try {
+                const response = await fetch('/api/providers');
+                const result = await response.json();
+                
+                if (result.success) {
+                    // 转换为以name为key的对象
+                    availableProviders = {};
+                    result.data.forEach(provider => {
+                        availableProviders[provider.name] = provider;
+                    });
+                } else {
+                    console.error('Failed to load providers:', result.error);
+                }
+            } catch (error) {
+                console.error('Error loading providers:', error);
+            }
+        }
+
+        function getProviderModel(suggestedProvider) {
+            const provider = availableProviders[suggestedProvider];
+            if (provider && provider.enabled) {
+                return provider.model;
+            }
+            
+            // 如果建议的提供商不可用，使用第一个可用的提供商
+            const enabledProviders = Object.values(availableProviders).filter(p => p.enabled);
+            if (enabledProviders.length > 0) {
+                return enabledProviders[0].model;
+            }
+            
+            return '未配置';
+        }
+
+        function getProviderDisplayName(suggestedProvider) {
+            const provider = availableProviders[suggestedProvider];
+            if (provider && provider.enabled) {
+                return provider.name.charAt(0).toUpperCase() + provider.name.slice(1);
+            }
+            
+            // 如果建议的提供商不可用，使用第一个可用的提供商
+            const enabledProviders = Object.values(availableProviders).filter(p => p.enabled);
+            if (enabledProviders.length > 0) {
+                return enabledProviders[0].name.charAt(0).toUpperCase() + enabledProviders[0].name.slice(1);
+            }
+            
+            return '未配置';
+        }
+
+        function initializeParticipants() {
+            const container = document.getElementById('participants-selector');
+            
+            roles.forEach(role => {
+                const card = document.createElement('div');
+                card.className = 'participant-card';
+                card.dataset.roleId = role.id;
+                
+                const providerName = getProviderDisplayName(role.suggestedProvider);
+                const modelName = getProviderModel(role.suggestedProvider);
+                
+                card.innerHTML = `
+                    <div class="badge">${role.tags[0]}</div>
+                    <h4>${role.name}</h4>
+                    <p>${role.description}</p>
+                    <div class="ai-model-info">
+                        <span class="ai-model-label">AI模型:</span>
+                        <span class="ai-model-name">${providerName} - ${modelName}</span>
+                    </div>
+                `;
+                
+                card.addEventListener('click', () => toggleParticipant(role.id, card));
+                container.appendChild(card);
+            });
+        }
+
+        function toggleParticipant(roleId, cardElement) {
+            if (selectedParticipants.includes(roleId)) {
+                selectedParticipants = selectedParticipants.filter(id => id !== roleId);
+                cardElement.classList.remove('selected');
+            } else {
+                selectedParticipants.push(roleId);
+                cardElement.classList.add('selected');
+            }
+            
+            updateStartButton();
+        }
+
+        function updateLoadingIndicator(show = true, nextSpeaker = null) {
+            const loadingIndicator = document.getElementById('loading-indicator');
+            const loadingText = document.querySelector('.loading-text');
+            const loadingRole = document.getElementById('loading-role');
+            
+            if (!show) {
+                loadingIndicator.style.display = 'none';
+                return;
+            }
+            
+            loadingIndicator.style.display = 'block';
+            
+            if (nextSpeaker) {
+                const role = roles.find(r => r.id === nextSpeaker);
+                if (role) {
+                    loadingText.textContent = `正在等待 ${role.name} 回复...`;
+                    loadingRole.textContent = `角色: ${role.description}`;
+                } else {
+                    loadingText.textContent = '正在等待AI回复...';
+                    loadingRole.textContent = '';
+                }
+            } else {
+                loadingText.textContent = '正在等待AI回复...';
+                loadingRole.textContent = '';
+            }
+        }
+
+        function getRoleName(roleId) {
+            const role = roles.find(r => r.id === roleId);
+            return role ? role.name : roleId;
+        }
+
+        function updateStartButton() {
+            const startBtn = document.getElementById('start-btn');
+            const question = document.getElementById('question').value.trim();
+            
+            startBtn.disabled = selectedParticipants.length < 2 || !question;
+        }
+
+        function setupWebSocket() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            ws = new WebSocket(`${protocol}//${window.location.host}`);
+            
+            ws.onopen = () => {
+                console.log('WebSocket connected');
+            };
+            
+            ws.onmessage = (event) => {
+                const message = JSON.parse(event.data);
+                handleWebSocketMessage(message);
+            };
+            
+            ws.onclose = () => {
+                console.log('WebSocket disconnected');
+                setTimeout(setupWebSocket, 3000); // 重连
+            };
+        }
+
+        function handleWebSocketMessage(message) {
+            switch (message.type) {
+                case 'discussion_started':
+                    showDiscussion(message.data.conversationId, message.data.topic.question);
+                    // 开始讨论时显示等待第一个参与者（支持者）
+                    updateLoadingIndicator(true, selectedParticipants[0]);
+                    break;
+                case 'message_received':
+                    addMessage(message.data.message);
+                    // 收到消息后，如果还有下一个参与者，显示等待状态
+                    const { participantIndex, totalParticipants } = message.data;
+                    if (participantIndex < totalParticipants - 1) {
+                        const nextIndex = participantIndex + 1;
+                        const nextParticipantId = selectedParticipants[nextIndex];
+                        updateLoadingIndicator(true, nextParticipantId);
+                    } else {
+                        // 所有参与者都已发言，隐藏loading
+                        updateLoadingIndicator(false);
+                    }
+                    break;
+                case 'round_started':
+                    const { participants } = message.data;
+                    if (participants && participants.length > 0) {
+                        addRoundIndicator(message.data.round, message.data.maxRounds);
+                        // 显示讨论顺序信息
+                        showDiscussionOrder(participants);
+                    }
+                    break;
+                case 'discussion_completed':
+                    markDiscussionCompleted();
+                    updateLoadingIndicator(false);
+                    break;
+                case 'discussion_error':
+                    showError('讨论过程中出现错误: ' + message.data.error);
+                    updateLoadingIndicator(false);
+                    break;
+            }
+        }
+
+        async function startDiscussion() {
+            const question = document.getElementById('question').value.trim();
+            const context = document.getElementById('context').value.trim();
+            
+            if (!question || selectedParticipants.length < 2) return;
+            
+            try {
+                const response = await fetch('/api/discussions', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        question,
+                        context: context || undefined,
+                        participants: selectedParticipants
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    currentDiscussionId = result.data.conversationId;
+                    
+                    // 订阅WebSocket更新
+                    if (ws && ws.readyState === WebSocket.OPEN) {
+                        ws.send(JSON.stringify({
+                            type: 'subscribe_discussion',
+                            conversationId: currentDiscussionId
+                        }));
+                    }
+                    
+                    showDiscussion(currentDiscussionId, question);
+                } else {
+                    showError(result.error);
+                }
+                
+            } catch (error) {
+                showError('启动讨论失败: ' + error.message);
+            }
+        }
+
+        function showDiscussion(discussionId, title) {
+            document.getElementById('form-section').style.display = 'none';
+            document.getElementById('discussion-section').style.display = 'block';
+            document.getElementById('discussion-title').textContent = title;
+        }
+
+        function addMessage(message) {
+            const container = document.getElementById('messages-container');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${message.role}`;
+            
+            const participantName = message.metadata?.participantName || message.model || 'AI';
+            const time = new Date(message.timestamp).toLocaleTimeString();
+            
+            // 使用marked渲染Markdown内容
+            const renderedContent = typeof marked !== 'undefined' 
+                ? marked.parse(message.content) 
+                : message.content.replace(/\n/g, '<br>');
+            
+            messageDiv.innerHTML = `
+                <div class="message-header">
+                    <span class="message-author">${participantName}</span>
+                    <span class="message-time">${time}</span>
+                </div>
+                <div class="message-content">${renderedContent}</div>
+            `;
+            
+            container.appendChild(messageDiv);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function showDiscussionOrder(participantNames) {
+            const container = document.getElementById('messages-container');
+            const orderDiv = document.createElement('div');
+            orderDiv.className = 'discussion-order';
+            orderDiv.style.cssText = `
+                text-align: center;
+                margin: 15px 0;
+                padding: 15px;
+                background: linear-gradient(135deg, rgba(14, 165, 233, 0.1) 0%, rgba(56, 189, 248, 0.05) 100%);
+                border-radius: 10px;
+                border: 1px solid rgba(14, 165, 233, 0.2);
+                color: #0ea5e9;
+                font-weight: 500;
+            `;
+            orderDiv.innerHTML = `
+                <div style="margin-bottom: 8px;">🎤 讨论顺序</div>
+                <div style="font-size: 14px; color: #64748b;">
+                    ${participantNames.map((name, index) => 
+                        `${index + 1}. ${name}`
+                    ).join(' → ')}
+                </div>
+            `;
+            
+            container.appendChild(orderDiv);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function addRoundIndicator(round, maxRounds) {
+            const container = document.getElementById('messages-container');
+            const indicator = document.createElement('div');
+            indicator.className = 'round-indicator';
+            indicator.textContent = `第 ${round} 轮讨论 (共 ${maxRounds} 轮)`;
+            
+            container.appendChild(indicator);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function markDiscussionCompleted() {
+            const status = document.getElementById('discussion-status');
+            status.textContent = '已完成';
+            status.className = 'discussion-status status-completed';
+            
+            document.getElementById('knowledge-section').style.display = 'block';
+        }
+
+        async function loadKnowledgeStats() {
+            try {
+                const response = await fetch('/api/knowledge/stats');
+                const result = await response.json();
+                
+                if (result.success) {
+                    const statsContainer = document.getElementById('knowledge-stats');
+                    const stats = result.data;
+                    
+                    statsContainer.innerHTML = `
+                        <div class="stat-card">
+                            <div class="stat-value">${stats.totalTopics}</div>
+                            <div class="stat-label">话题数量</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value">${stats.totalEntries}</div>
+                            <div class="stat-label">知识条目</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value">${stats.averageEntriesPerTopic.toFixed(1)}</div>
+                            <div class="stat-label">平均条目/话题</div>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                console.error('Failed to load knowledge stats:', error);
+            }
+        }
+
+        function showError(message) {
+            alert(message);
+            updateLoadingIndicator(false);
+        }
+
+        function backToHome() {
+            // 重置页面状态
+            document.getElementById('discussion-section').style.display = 'none';
+            document.getElementById('form-section').style.display = 'block';
+            document.getElementById('knowledge-section').style.display = 'none';
+            
+            // 隐藏loading指示器
+            updateLoadingIndicator(false);
+            
+            // 清空消息容器
+            document.getElementById('messages-container').innerHTML = '';
+            
+            // 重置表单
+            document.getElementById('question').value = '';
+            document.getElementById('context').value = '';
+            
+            // 清空选中的参与者
+            selectedParticipants = [];
+            document.querySelectorAll('.participant-card.selected').forEach(card => {
+                card.classList.remove('selected');
+            });
+            
+            // 重新设置默认角色选择
+            const defaultRoles = ['critic', 'supporter', 'synthesizer'];
+            defaultRoles.forEach(roleId => {
+                const card = document.querySelector(`[data-role-id="${roleId}"]`);
+                if (card) {
+                    toggleParticipant(roleId, card);
+                }
+            });
+            
+            // 关闭WebSocket连接
+            if (ws && currentDiscussionId) {
+                ws.send(JSON.stringify({
+                    type: 'unsubscribe_discussion',
+                    conversationId: currentDiscussionId
+                }));
+            }
+            
+            // 重置变量
+            currentDiscussionId = null;
+            currentRound = 0;
+            nextSpeakerIndex = 0;
+        }
+
+        // 初始化
+        document.addEventListener('DOMContentLoaded', async () => {
+            // 先加载提供商配置
+            await loadProviders();
+            
+            // 然后初始化界面
+            initializeParticipants();
+            setupWebSocket();
+            
+            document.getElementById('question').addEventListener('input', updateStartButton);
+            document.getElementById('start-btn').addEventListener('click', startDiscussion);
+            document.getElementById('back-home-btn').addEventListener('click', backToHome);
+            
+            // 默认选择3个角色
+            const defaultRoles = ['critic', 'supporter', 'synthesizer'];
+            defaultRoles.forEach(roleId => {
+                const card = document.querySelector(`[data-role-id="${roleId}"]`);
+                if (card) {
+                    toggleParticipant(roleId, card);
+                }
+            });
+        });
+    </script>
+</body>
+</html>
