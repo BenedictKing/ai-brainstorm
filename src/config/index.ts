@@ -5,7 +5,8 @@ import * as fs from "fs";
 // 在生产环境中，优先使用Railway的环境变量，不需要.env文件
 if (process.env.NODE_ENV !== 'production') {
   // 加载环境变量文件的优先级：.env.local > .env
-  const rootDir = path.resolve(__dirname, "../..");
+  // 在 ESM 环境中使用 process.cwd() 作为项目根目录
+  const rootDir = process.cwd();
 
   // 首先尝试加载 .env.local
   const envLocalPath = path.join(rootDir, ".env.local");

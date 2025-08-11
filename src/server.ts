@@ -43,8 +43,8 @@ class AIBrainstormServer {
     
     // 设置并保存静态目录路径（生产环境指向 dist/public，开发指向项目根 public）
     this.publicPath = process.env.NODE_ENV === 'production'
-      ? path.join(__dirname, 'public')   // __dirname 在 dist 中 -> dist/public
-      : path.resolve(process.cwd(), 'public'); // 开发时使用项目根的 public
+      ? path.join(process.cwd(), 'dist', 'public') // 生产：dist/public（与 build 输出一致）
+      : path.resolve(process.cwd(), 'public');      // 开发：项目根 public
 
     console.log(`📁 Serving static files from: ${path.resolve(this.publicPath)}`);
     this.app.use(express.static(this.publicPath));
