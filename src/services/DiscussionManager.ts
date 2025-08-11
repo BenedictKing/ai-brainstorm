@@ -263,17 +263,17 @@ export class DiscussionManager extends EventEmitter {
   }
 
   private getDiscussionOrder(participants: AIParticipant[]): AIParticipant[] {
-    // 确保Gemini模型第一个发言
-    const geminiParticipant = participants.find((p) => p.model.provider === 'gemini');
-    const otherParticipants = participants.filter((p) => p.model.provider !== 'gemini');
+    // 确保 "初次发言人" (first_speaker) 第一个发言
+    const firstSpeaker = participants.find((p) => p.roleId === 'first_speaker');
+    const otherParticipants = participants.filter((p) => p.roleId !== 'first_speaker');
 
-    if (!geminiParticipant) {
-      // 如果Gemini由于某种原因不存在，则按原顺序返回，尽管startDiscussion中已有检查
-      console.warn('Could not find Gemini participant for ordering. Proceeding with default order.');
+    if (!firstSpeaker) {
+      // 如果 "初次发言人" 由于某种原因不存在，则按原顺序返回
+      console.warn('Could not find the "first_speaker" participant for ordering. Proceeding with default order.');
       return participants;
     }
 
-    return [geminiParticipant, ...otherParticipants];
+    return [firstSpeaker, ...otherParticipants];
   }
 
   private buildContextualPrompt(
