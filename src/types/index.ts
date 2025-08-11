@@ -27,6 +27,7 @@ export interface Conversation {
 
 export interface AIParticipant {
   id: string;
+  roleId: string;
   name: string;
   role: string;
   model: AIModel;

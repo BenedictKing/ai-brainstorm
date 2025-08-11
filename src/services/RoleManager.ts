@@ -96,6 +96,7 @@ export class RoleManager {
 
     return {
       id: uuidv4(),
+      roleId, // Add this line
       name: name || role.name,
       role: role.name,
       model: {
@@ -117,6 +118,7 @@ export class RoleManager {
   ): AIParticipant {
     return {
       id: uuidv4(),
+      roleId: 'custom', // Add this line
       name,
       role: name,
       model: {

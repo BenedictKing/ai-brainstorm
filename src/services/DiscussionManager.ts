@@ -125,7 +125,7 @@ export class DiscussionManager extends EventEmitter {
       conversationId, 
       round: 1, 
       maxRounds: 1,
-      participants: discussionOrder.map(p => p.name)
+      participants: discussionOrder // <-- CHANGE THIS LINE
     });
 
     // 确保初次发言人成功发言

@@ -46,6 +46,7 @@ const isLoading = ref(false)
 const nextSpeaker = ref(null)
 const discussionStatus = ref('active')
 const messagesContainer = ref(null)
+const orderedParticipants = ref([]) // <-- Add this state
 
 // 计算属性
 const statusClass = computed(() => {
@@ -63,23 +64,29 @@ const handleWebSocketMessage = (event) => {
   try {
     const message = JSON.parse(event.data)
 
+    // 只处理与当前讨论相关的消息
+    if (message.data?.conversationId && message.data.conversationId !== props.discussionId) {
+      return;
+    }
+
     switch (message.type) {
       case 'discussion_started':
         console.log('🚀 Discussion started:', message.data)
         isLoading.value = true
-        if (message.data.participants?.length > 0) {
-          nextSpeaker.value = message.data.participants[0]
-        }
+        nextSpeaker.value = null // 等待round_started事件来确定发言者
         break
 
       case 'message_received':
         console.log('💬 Message received:', message.data)
         addMessage(message.data.message)
 
-        // 检查是否还有下一个参与者
         const { participantIndex, totalParticipants } = message.data
         if (participantIndex < totalParticipants - 1) {
-          nextSpeaker.value = getNextSpeakerName(participantIndex + 1)
+          const nextParticipant = orderedParticipants.value[participantIndex + 1]
+          if (nextParticipant) {
+            isLoading.value = true
+            nextSpeaker.value = nextParticipant.roleId
+          }
         } else {
           isLoading.value = false
           nextSpeaker.value = null
@@ -88,9 +95,16 @@ const handleWebSocketMessage = (event) => {
 
       case 'round_started':
         console.log('🔄 Round started:', message.data)
+        orderedParticipants.value = message.data.participants
+        
         addRoundIndicator(message.data.round, message.data.maxRounds)
         if (message.data.participants?.length > 0) {
-          addDiscussionOrder(message.data.participants)
+          addDiscussionOrder(message.data.participants.map(p => p.name))
+        }
+
+        if (orderedParticipants.value.length > 0) {
+          isLoading.value = true;
+          nextSpeaker.value = orderedParticipants.value[0].roleId
         }
         break
 
@@ -99,6 +113,7 @@ const handleWebSocketMessage = (event) => {
         discussionStatus.value = 'completed'
         isLoading.value = false
         nextSpeaker.value = null
+        orderedParticipants.value = []
         break
 
       case 'discussion_error':
@@ -188,11 +203,8 @@ const addRetryIndicator = (retryData) => {
   scrollToBottom()
 }
 
-const getNextSpeakerName = (index) => {
-  // 这里需要根据实际的参与者列表来获取
-  // 临时实现
-  return `参与者 ${index + 1}`
-}
+// REMOVE the getNextSpeakerName function
+// const getNextSpeakerName = (index) => { ... }
 
 const scrollToBottom = () => {
   nextTick(() => {
