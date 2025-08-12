@@ -26,18 +26,46 @@
         {{ formatTime(message.timestamp) }}
       </span>
     </div>
-    <div class="message-content" v-html="renderMarkdown(message.content)"></div>
+    <div 
+      class="message-content" 
+      :class="{ 'collapsed': !isExpanded && shouldCollapse }"
+      v-html="renderMarkdown(message.content)">
+    </div>
+    <div v-if="shouldCollapse" class="expand-button">
+      <el-button 
+        text 
+        type="primary" 
+        size="small" 
+        @click="toggleExpanded">
+        {{ isExpanded ? '收起' : '展开全文' }}
+      </el-button>
+    </div>
   </div>
 </template>
 
 <script setup>
+import { ref, computed } from 'vue'
 import { marked } from 'marked'
 
 const props = defineProps({
   message: Object,
 })
 
+// 状态管理
+const isExpanded = ref(false)
+
+// 计算属性
+const shouldCollapse = computed(() => {
+  // 判断内容是否需要折叠：超过一定长度或行数
+  const content = props.message.content
+  return content && (content.length > 600 || content.split('\n').length > 6)
+})
+
 // 方法
+const toggleExpanded = () => {
+  isExpanded.value = !isExpanded.value
+}
+
 const getAuthorName = (message) => {
   return message.metadata?.participantName || message.model || 'AI'
 }
@@ -91,5 +119,37 @@ const renderMarkdown = (content) => {
   to {
     transform: rotate(360deg);
   }
+}
+
+/* 消息折叠样式 */
+.message-content {
+  transition: all 0.3s ease;
+}
+
+.message-content.collapsed {
+  max-height: 17em; /* 约10行的高度，根据line-height 1.7计算 (1.7 * 10 = 17em) */
+  overflow: hidden;
+  position: relative;
+}
+
+.message-content.collapsed::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 3em;
+  background: linear-gradient(transparent, #fdfcfb); /* 匹配assistant消息的背景色 */
+  pointer-events: none;
+}
+
+.expand-button {
+  margin-top: 8px;
+  text-align: center;
+}
+
+.expand-button .el-button {
+  font-size: 12px;
+  padding: 4px 8px;
 }
 </style>

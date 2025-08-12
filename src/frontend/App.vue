@@ -35,7 +35,7 @@ import DiscussionForm from './components/DiscussionForm.vue'
 import DiscussionView from './components/DiscussionView.vue'
 import KnowledgePanel from './components/KnowledgePanel.vue'
 import { useProviders } from './composables/useProviders'
-import { STORAGE_KEYS, loadFromStorage, removeFromStorage } from './utils/storage'
+import { STORAGE_KEYS, loadFromStorage, removeFromStorage, migrateLegacyStorage } from './utils/storage'
 
 // 状态管理
 const showDiscussion = ref(false)
@@ -52,6 +52,11 @@ const { providers, loadProviders } = useProviders()
 
 // 轮询函数
 const startPolling = (pollingFunction, intervalMs = 2000) => {
+  if (!pollingFunction || typeof pollingFunction !== 'function') {
+    console.error('❌ startPolling: pollingFunction is not a function', pollingFunction)
+    return
+  }
+  
   if (isPolling.value) {
     stopPolling()
   }
@@ -60,10 +65,23 @@ const startPolling = (pollingFunction, intervalMs = 2000) => {
   isPolling.value = true
   
   // 立即执行一次
-  pollingFunction()
+  try {
+    pollingFunction()
+  } catch (error) {
+    console.error('❌ Error in polling function:', error)
+    isPolling.value = false
+    return
+  }
   
   // 设置定时轮询
-  pollingInterval = setInterval(pollingFunction, intervalMs)
+  pollingInterval = setInterval(() => {
+    try {
+      pollingFunction()
+    } catch (error) {
+      console.error('❌ Error in polling function:', error)
+      stopPolling()
+    }
+  }, intervalMs)
 }
 
 const stopPolling = () => {
@@ -119,6 +137,9 @@ const clearInvalidDiscussion = () => {
 
 // 在组件挂载时检查并恢复讨论状态
 onMounted(() => {
+  // 先迁移旧的localStorage格式
+  migrateLegacyStorage()
+  
   const activeId = loadFromStorage(STORAGE_KEYS.ACTIVE_DISCUSSION_ID)
   const activeTitle = loadFromStorage(STORAGE_KEYS.ACTIVE_DISCUSSION_TITLE)
 

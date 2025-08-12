@@ -1,5 +1,6 @@
 import { AIProviderFactory } from '../models/index.js'
 import { RoleManager } from './RoleManager.js'
+import { DatabaseManager } from './DatabaseManager.js'
 import { Conversation, Message, DiscussionTopic, AIParticipant, APIResponse } from '../types/index.js'
 import { v4 as uuidv4 } from 'uuid'
 import { EventEmitter } from 'events'
@@ -11,11 +12,12 @@ export interface DiscussionConfig {
 }
 
 export class DiscussionManager extends EventEmitter {
-  private activeConversations: Map<string, Map<string, Conversation>> = new Map()
+  private db: DatabaseManager
   private config: DiscussionConfig
 
   constructor(config: DiscussionConfig = {}) {
     super()
+    this.db = new DatabaseManager()
     this.config = {
       maxRounds: 3,
       responseTimeout: 300000,
@@ -24,16 +26,8 @@ export class DiscussionManager extends EventEmitter {
     }
   }
 
-  private _getUserConversations(clientId: string): Map<string, Conversation> {
-    if (!this.activeConversations.has(clientId)) {
-      this.activeConversations.set(clientId, new Map())
-    }
-    return this.activeConversations.get(clientId)!
-  }
-
   async startDiscussion(clientId: string, topic: DiscussionTopic): Promise<string> {
     const conversationId = uuidv4()
-    const userConversations = this._getUserConversations(clientId)
 
     if (!topic.participants || topic.participants.length < 2) {
       throw new Error('At least two participants are required to start a discussion.')
@@ -73,7 +67,14 @@ export class DiscussionManager extends EventEmitter {
       tags: ['discussion', 'panel-mode'],
     }
 
-    userConversations.set(conversationId, conversation)
+    // 保存到数据库
+    this.db.saveConversation(conversation, clientId)
+    
+    // 保存初始消息
+    for (const message of conversation.messages) {
+      this.db.saveMessage(message, conversationId)
+    }
+
     this.emit('discussionStarted', { clientId, conversationId, topic, participants: aiParticipants })
 
     this.runDiscussion(clientId, conversationId).catch((error) => {
@@ -84,8 +85,7 @@ export class DiscussionManager extends EventEmitter {
   }
 
   private async runDiscussion(clientId: string, conversationId: string): Promise<void> {
-    const userConversations = this._getUserConversations(clientId)
-    const conversation = userConversations.get(conversationId)
+    const conversation = this.db.getConversation(clientId, conversationId)
     if (!conversation) return
 
     try {
@@ -93,6 +93,11 @@ export class DiscussionManager extends EventEmitter {
       await this.runDiscussionRound(conversation, conversationId, clientId)
 
       conversation.status = 'completed'
+      conversation.updatedAt = new Date()
+      
+      // 更新数据库状态
+      this.db.updateConversationStatus(conversationId, clientId, 'completed')
+      
       this.emit('discussionCompleted', {
         clientId,
         conversationId,
@@ -102,6 +107,7 @@ export class DiscussionManager extends EventEmitter {
     } catch (error) {
       if (conversation) {
         conversation.status = 'error'
+        this.db.updateConversationStatus(conversationId, clientId, 'error')
       }
       console.error('Discussion failed:', error)
       this.emit('discussionError', { clientId, conversationId, error })
@@ -115,7 +121,7 @@ export class DiscussionManager extends EventEmitter {
   ): Promise<void> {
     const activeParticipants = conversation.participants.filter((p: AIParticipant) => p.isActive)
 
-    // 定义讨论顺序：支持者先发言，然后是其他角色
+    // 定义讨论顺序：支持者先发言，然后是其他角色，综合者最后
     const discussionOrder = this.getDiscussionOrder(activeParticipants)
 
     conversation.currentRound = 1
@@ -127,13 +133,13 @@ export class DiscussionManager extends EventEmitter {
       participants: discussionOrder,
     })
 
-    // 确保初次发言人成功发言
-    const firstSpeaker = discussionOrder[0]
+    // 第一阶段：确保初次发言人成功发言
+    const firstSpeaker = discussionOrder.find(p => p.roleId === 'first_speaker')
     if (!firstSpeaker) {
-      throw new Error('No participants available for discussion')
+      throw new Error('No first speaker available for discussion')
     }
 
-    // 处理初次发言人的发言，包含重试机制
+    console.log('🎤 Stage 1: First speaker providing foundation...')
     const firstResponse = await this.getFirstSpeakerResponse(conversation, firstSpeaker, conversationId, clientId)
     if (!firstResponse || firstResponse.metadata?.isErrorMessage) {
       throw new Error('First speaker failed to provide a valid response')
@@ -141,6 +147,7 @@ export class DiscussionManager extends EventEmitter {
 
     conversation.messages.push(firstResponse)
     conversation.updatedAt = new Date()
+    this.db.saveMessage(firstResponse, conversationId)
 
     if (this.config.enableRealTimeUpdates) {
       this.emit('messageReceived', {
@@ -155,39 +162,110 @@ export class DiscussionManager extends EventEmitter {
     // 给其他参与者时间处理，模拟真实讨论节奏
     await new Promise((resolve) => setTimeout(resolve, 2000))
 
-    // 处理其他参与者的发言
-    for (let i = 1; i < discussionOrder.length; i++) {
-      const participant = discussionOrder[i]
+    // 第二阶段：其他参与者并发发言（除了初次发言人和综合者）
+    const otherParticipants = discussionOrder.filter(p => 
+      p.roleId !== 'first_speaker' && p.roleId !== 'synthesizer'
+    )
 
+    if (otherParticipants.length > 0) {
+      console.log('🗣️ Stage 2: Other participants responding concurrently...')
+      await this.processConcurrentResponses(conversation, otherParticipants, conversationId, clientId)
+    }
+
+    // 第三阶段：综合者最后发言
+    const synthesizer = discussionOrder.find(p => p.roleId === 'synthesizer')
+    if (synthesizer) {
+      console.log('🔄 Stage 3: Synthesizer providing final analysis...')
+      await this.processSynthesizerResponse(conversation, synthesizer, conversationId, clientId)
+    }
+  }
+
+  // 处理并发响应
+  private async processConcurrentResponses(
+    conversation: Conversation,
+    participants: AIParticipant[],
+    conversationId: string,
+    clientId: string
+  ): Promise<void> {
+    // 并发获取所有参与者的响应
+    const responsePromises = participants.map(async (participant, index) => {
       try {
-        // 构建针对当前讨论状态的提示词
+        console.log(`🎯 Getting response from ${participant.name}...`)
         const contextualPrompt = this.buildContextualPrompt(conversation, participant, false)
-
         const response = await this.getParticipantResponse(conversation, participant, contextualPrompt)
-
-        if (response && !response.metadata?.isErrorMessage) {
-          conversation.messages.push(response)
-          conversation.updatedAt = new Date()
-
-          if (this.config.enableRealTimeUpdates) {
-            this.emit('messageReceived', {
-              clientId,
-              conversationId,
-              message: response,
-              participantIndex: i,
-              totalParticipants: discussionOrder.length,
-            })
-          }
-
-          // 给其他参与者时间处理，模拟真实讨论节奏
-          if (i < discussionOrder.length - 1) {
-            await new Promise((resolve) => setTimeout(resolve, 2000))
-          }
+        
+        return {
+          participant,
+          response,
+          index,
+          success: !response.metadata?.isErrorMessage
         }
       } catch (error) {
-        console.error(`Participant ${participant.name} failed to respond:`, error)
-        // 其他参与者失败不会中断整个讨论，只是记录错误
+        console.error(`❌ Participant ${participant.name} failed to respond:`, error)
+        return {
+          participant,
+          response: null,
+          index,
+          success: false
+        }
       }
+    })
+
+    // 等待所有响应完成
+    const results = await Promise.all(responsePromises)
+
+    // 按成功的响应顺序保存和发布消息
+    const successfulResults = results.filter(r => r.success && r.response)
+    
+    for (const result of successfulResults) {
+      conversation.messages.push(result.response!)
+      conversation.updatedAt = new Date()
+      this.db.saveMessage(result.response!, conversationId)
+
+      if (this.config.enableRealTimeUpdates) {
+        this.emit('messageReceived', {
+          clientId,
+          conversationId,
+          message: result.response!,
+          participantIndex: result.index + 1, // +1 因为初次发言人是0
+          totalParticipants: participants.length + 2, // +2 for first speaker and synthesizer
+        })
+      }
+
+      // 给前端时间更新UI
+      await new Promise((resolve) => setTimeout(resolve, 1000))
+    }
+  }
+
+  // 处理综合者响应
+  private async processSynthesizerResponse(
+    conversation: Conversation,
+    synthesizer: AIParticipant,
+    conversationId: string,
+    clientId: string
+  ): Promise<void> {
+    try {
+      const contextualPrompt = this.buildContextualPrompt(conversation, synthesizer, false)
+      const response = await this.getParticipantResponse(conversation, synthesizer, contextualPrompt)
+
+      if (response && !response.metadata?.isErrorMessage) {
+        conversation.messages.push(response)
+        conversation.updatedAt = new Date()
+        this.db.saveMessage(response, conversationId)
+
+        if (this.config.enableRealTimeUpdates) {
+          this.emit('messageReceived', {
+            clientId,
+            conversationId,
+            message: response,
+            participantIndex: conversation.participants.length - 1, // 最后一个
+            totalParticipants: conversation.participants.length,
+          })
+        }
+      }
+    } catch (error) {
+      console.error(`❌ Synthesizer ${synthesizer.name} failed to respond:`, error)
+      // 综合者失败不应该中断整个讨论
     }
   }
 
@@ -265,7 +343,10 @@ export class DiscussionManager extends EventEmitter {
   private getDiscussionOrder(participants: AIParticipant[]): AIParticipant[] {
     // 确保 "初次发言人" (first_speaker) 第一个发言
     const firstSpeaker = participants.find((p) => p.roleId === 'first_speaker')
-    const otherParticipants = participants.filter((p) => p.roleId !== 'first_speaker')
+    // 确保 "综合者" (synthesizer) 最后发言
+    const synthesizer = participants.find((p) => p.roleId === 'synthesizer')
+    // 其他参与者在中间发言
+    const otherParticipants = participants.filter((p) => p.roleId !== 'first_speaker' && p.roleId !== 'synthesizer')
 
     if (!firstSpeaker) {
       // 如果 "初次发言人" 由于某种原因不存在，则按原顺序返回
@@ -273,7 +354,13 @@ export class DiscussionManager extends EventEmitter {
       return participants
     }
 
-    return [firstSpeaker, ...otherParticipants]
+    // 构建最终顺序：初次发言人 → 其他参与者 → 综合者
+    const finalOrder = [firstSpeaker, ...otherParticipants]
+    if (synthesizer) {
+      finalOrder.push(synthesizer)
+    }
+
+    return finalOrder
   }
 
   private buildContextualPrompt(
@@ -284,13 +371,32 @@ export class DiscussionManager extends EventEmitter {
     const originalQuestion = conversation.messages.find((m: Message) => m.role === 'user')?.content || ''
 
     if (isFirstSpeaker) {
-      // Gemini的提示词：作为首个回答者，请全面回答问题
+      // 首位发言者的提示词：作为首个回答者，请全面回答问题
       return `你被指定为本次讨论的首位发言者。请针对以下问题提供一个全面、深入、结构化的基础回答。你的回答将作为后续讨论的起点。
 
 问题：
 ${originalQuestion}`
+    } else if (participant.roleId === 'synthesizer') {
+      // 综合者的特殊提示词：需要综合所有前面的观点
+      const allResponses = conversation.messages.filter((m: Message) => m.role === 'assistant')
+      const discussionSummary = allResponses.map((msg, index) => {
+        const speakerName = msg.metadata?.participantName || `发言者 ${index + 1}`
+        return `**${speakerName}** 的观点：\n${msg.content}`
+      }).join('\n\n')
+
+      return `这是一个专题讨论会，你是综合者。请仔细阅读原始问题以及所有参与者的发言。
+
+你的任务是作为讨论的综合者，整合各方观点，寻找共同点，调和分歧，并提出平衡的结论或解决方案。
+
+原始问题：
+${originalQuestion}
+
+讨论内容：
+${discussionSummary}
+
+现在，请作为综合者，整合以上观点并给出你的综合分析：`
     } else {
-      // 其他模型的提示词：基于问题和Gemini的回答进行思辨
+      // 其他参与者的提示词：基于问题和首位发言者的回答进行思辨
       const firstResponse = conversation.messages.find((m: Message) => m.role === 'assistant')
       const firstSpeakerName = firstResponse?.metadata?.participantName || '首位发言者'
       const firstAnswer = firstResponse?.content || '（首位发言者未能提供回答）'
@@ -430,13 +536,12 @@ ${firstAnswer}
   }
 
   getConversation(clientId: string, conversationId: string): Conversation | undefined {
-    const userConversations = this._getUserConversations(clientId)
-    return userConversations.get(conversationId)
+    const conversation = this.db.getConversation(clientId, conversationId)
+    return conversation || undefined
   }
 
   getAllConversations(clientId: string): Conversation[] {
-    const userConversations = this._getUserConversations(clientId)
-    return Array.from(userConversations.values())
+    return this.db.getAllConversations(clientId)
   }
 
   updateParticipant(
@@ -457,6 +562,10 @@ ${firstAnswer}
     }
 
     conversation.updatedAt = new Date()
+    
+    // 保存更新到数据库
+    this.db.saveConversation(conversation, clientId)
+    
     return true
   }
 
@@ -472,6 +581,10 @@ ${firstAnswer}
 
     conversation.messages.push(newMessage)
     conversation.updatedAt = new Date()
+
+    // 保存到数据库
+    this.db.saveMessage(newMessage, conversationId)
+    this.db.saveConversation(conversation, clientId)
 
     this.emit('messageAdded', { clientId, conversationId, message: newMessage })
     return true

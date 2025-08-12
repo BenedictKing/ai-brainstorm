@@ -14,9 +14,27 @@
     </div>
 
     <div class="messages-container" ref="messagesContainer">
-      <MessageItem v-for="message in messages" :key="message.id" :message="message" />
+      <!-- 讨论不存在时的重试界面 -->
+      <div v-if="showDiscussionNotFound" class="discussion-not-found">
+        <div class="not-found-content">
+          <h3>🔍 找不到讨论</h3>
+          <p>该讨论可能已过期或服务器已重启。</p>
+          <div class="not-found-actions">
+            <el-button type="primary" @click="retryLoadDiscussion">
+              重试加载
+            </el-button>
+            <el-button @click="$emit('back-to-home')">
+              返回首页
+            </el-button>
+          </div>
+        </div>
+      </div>
 
-      <LoadingIndicator v-if="isLoading" :next-speaker="nextSpeaker" />
+      <!-- 正常的消息列表 -->
+      <template v-else>
+        <MessageItem v-for="message in messages" :key="message.id" :message="message" />
+        <LoadingIndicator v-if="isLoading" :next-speaker="nextSpeaker" />
+      </template>
     </div>
   </div>
 </template>
@@ -45,6 +63,7 @@ const discussionStatus = ref('active')
 const messagesContainer = ref(null)
 const orderedParticipants = ref([])
 const lastMessageCount = ref(0)
+const showDiscussionNotFound = ref(false)
 
 // 计算属性
 const statusClass = computed(() => {
@@ -66,12 +85,13 @@ const pollDiscussionStatus = async () => {
     })
     if (!response.ok) {
       if (response.status === 404) {
-        // 讨论不存在，可能服务器重启了
-        console.warn('⚠️ Discussion not found, possibly server restarted')
-        ElMessage.warning('讨论数据不存在，可能服务器已重启。将返回首页。')
-        setTimeout(() => {
-          emit('back-to-home')
-        }, 2000)
+        // 讨论不存在，显示重试界面而不是自动跳转
+        console.warn('⚠️ Discussion not found, showing retry interface')
+        showDiscussionNotFound.value = true
+        isLoading.value = false
+        if (stopPolling) {
+          stopPolling()
+        }
         return
       }
       throw new Error(`HTTP error! status: ${response.status}`)
@@ -79,14 +99,23 @@ const pollDiscussionStatus = async () => {
 
     const result = await response.json()
     if (result.success) {
+      // 如果成功获取到数据，隐藏404界面
+      showDiscussionNotFound.value = false
+      
       const conversation = result.data
       const isFirstLoad = messages.value.length === 0
 
       // 1. 更新消息列表
       if (conversation.messages && conversation.messages.length > lastMessageCount.value) {
         if (isFirstLoad && conversation.messages.length > 0) {
-          addRoundIndicator(conversation.currentRound, conversation.maxRounds)
-          addDiscussionOrder(conversation.participants.map((p) => p.name))
+          // 只有在实际开始讨论时才显示轮次指示器，并且还没有显示过
+          if (conversation.currentRound > 0 && !messages.value.some(m => m.type === 'round-indicator')) {
+            addRoundIndicator(conversation.currentRound, conversation.maxRounds)
+          }
+          // 只有还没有显示过讨论顺序时才添加
+          if (!messages.value.some(m => m.type === 'discussion-order')) {
+            addDiscussionOrder(conversation.participants.map((p) => p.name))
+          }
         }
 
         const newMessages = conversation.messages.slice(lastMessageCount.value)
@@ -131,20 +160,15 @@ const pollDiscussionStatus = async () => {
   }
 }
 
-// 监听轮询状态变化
-watch(
-  [startPolling, isPolling],
-  () => {
-    if (startPolling && props.discussionId) {
-      setupPolling()
-    }
-  },
-  { immediate: true }
-)
-
 // 设置轮询
 const setupPolling = () => {
   console.log('🔄 Setting up polling for discussion:', props.discussionId)
+
+  // 确保startPolling函数可用
+  if (!startPolling || typeof startPolling !== 'function') {
+    console.error('❌ startPolling function is not available')
+    return
+  }
 
   // 开始轮询，每2秒一次
   startPolling(pollDiscussionStatus, 2000)
@@ -199,6 +223,22 @@ const scrollToBottom = () => {
   })
 }
 
+// 重试加载讨论
+const retryLoadDiscussion = () => {
+  console.log('🔄 Retrying to load discussion...')
+  showDiscussionNotFound.value = false
+  isLoading.value = true
+  lastMessageCount.value = 0
+  messages.value = []
+  
+  // 重新开始轮询
+  if (startPolling && typeof startPolling === 'function' && props.discussionId) {
+    setupPolling()
+  } else {
+    console.error('❌ Cannot retry: startPolling function is not available')
+  }
+}
+
 // 生命周期
 onMounted(() => {
   console.log('📱 DiscussionView mounted, discussionId:', props.discussionId)
@@ -207,10 +247,14 @@ onMounted(() => {
   isLoading.value = true
   lastMessageCount.value = 0
 
-  // 开始轮询
-  if (startPolling && props.discussionId) {
-    setupPolling()
-  }
+  // 等待下一个tick，确保所有inject都已完成
+  nextTick(() => {
+    if (startPolling && typeof startPolling === 'function' && props.discussionId) {
+      setupPolling()
+    } else {
+      console.error('❌ startPolling function not available:', { startPolling, discussionId: props.discussionId })
+    }
+  })
 })
 
 onUnmounted(() => {
@@ -336,5 +380,32 @@ onUnmounted(() => {
 
 .messages-container::-webkit-scrollbar-thumb:hover {
   background: linear-gradient(135deg, #c19552 0%, #b8864a 100%);
+}
+
+.discussion-not-found {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+  text-align: center;
+}
+
+.not-found-content h3 {
+  color: #8b5a3c;
+  font-size: 24px;
+  margin-bottom: 16px;
+}
+
+.not-found-content p {
+  color: #5d4e37;
+  font-size: 16px;
+  margin-bottom: 24px;
+  opacity: 0.8;
+}
+
+.not-found-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
 }
 </style>

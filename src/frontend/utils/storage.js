@@ -14,7 +14,17 @@ export const STORAGE_KEYS = {
 export const loadFromStorage = (key, defaultValue) => {
   try {
     const stored = localStorage.getItem(key)
-    return stored ? JSON.parse(stored) : defaultValue
+    if (!stored) return defaultValue
+    
+    // 对于简单字符串，直接返回
+    if (key === STORAGE_KEYS.CLIENT_ID || 
+        key === STORAGE_KEYS.ACTIVE_DISCUSSION_ID || 
+        key === STORAGE_KEYS.ACTIVE_DISCUSSION_TITLE) {
+      return stored
+    }
+    
+    // 对于复杂对象，使用JSON.parse
+    return JSON.parse(stored)
   } catch (error) {
     console.warn(`Failed to load ${key} from localStorage:`, error)
     return defaultValue
@@ -24,7 +34,15 @@ export const loadFromStorage = (key, defaultValue) => {
 // 保存到localStorage
 export const saveToStorage = (key, value) => {
   try {
-    localStorage.setItem(key, JSON.stringify(value))
+    // 对于简单字符串，直接存储
+    if (key === STORAGE_KEYS.CLIENT_ID || 
+        key === STORAGE_KEYS.ACTIVE_DISCUSSION_ID || 
+        key === STORAGE_KEYS.ACTIVE_DISCUSSION_TITLE) {
+      localStorage.setItem(key, value)
+    } else {
+      // 对于复杂对象，使用JSON.stringify
+      localStorage.setItem(key, JSON.stringify(value))
+    }
   } catch (error) {
     console.warn(`Failed to save ${key} to localStorage:`, error)
   }
@@ -74,4 +92,26 @@ export const getClientId = () => {
     localStorage.setItem(STORAGE_KEYS.CLIENT_ID, clientId)
   }
   return clientId
+}
+
+// 迁移旧的带引号的localStorage数据
+export const migrateLegacyStorage = () => {
+  const keysToMigrate = [
+    STORAGE_KEYS.ACTIVE_DISCUSSION_ID,
+    STORAGE_KEYS.ACTIVE_DISCUSSION_TITLE
+  ]
+  
+  keysToMigrate.forEach(key => {
+    const stored = localStorage.getItem(key)
+    if (stored && stored.startsWith('"') && stored.endsWith('"')) {
+      // 是带引号的JSON字符串，需要迁移
+      try {
+        const unquoted = JSON.parse(stored)
+        localStorage.setItem(key, unquoted)
+        console.log(`✅ Migrated ${key} from quoted to unquoted format`)
+      } catch (error) {
+        console.warn(`Failed to migrate ${key}:`, error)
+      }
+    }
+  })
 }

@@ -62,7 +62,6 @@ class AIBrainstormServer {
                 name,
                 model: config.model,
                 format: config.format,
-                baseUrl: config.baseUrl,
                 enabled: config.enabled,
               },
             ])
@@ -76,7 +75,6 @@ class AIBrainstormServer {
         name,
         model: config.model,
         format: config.format,
-        baseUrl: config.baseUrl,
         enabled: config.enabled,
         hasApiKey: !!config.apiKey,
       }))
@@ -100,7 +98,6 @@ class AIBrainstormServer {
           name: req.params.name,
           model: config.model,
           format: config.format,
-          baseUrl: config.baseUrl,
           enabled: config.enabled,
           hasApiKey: !!config.apiKey,
         },
