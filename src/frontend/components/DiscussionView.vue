@@ -33,7 +33,12 @@
       <!-- 正常的消息列表 -->
       <template v-else>
         <MessageItem v-for="message in messages" :key="message.id" :message="message" />
-        <LoadingIndicator v-if="isLoading" :next-speaker="nextSpeaker" />
+        
+        <!-- 讨论进行中时显示转圈 -->
+        <div v-if="discussionStatus === 'active' && !showDiscussionNotFound" class="discussion-loading">
+          <div class="loading-spinner"></div>
+          <div class="loading-text">AI正在思考中...</div>
+        </div>
       </template>
     </div>
   </div>

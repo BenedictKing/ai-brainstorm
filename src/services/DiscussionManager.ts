@@ -69,7 +69,7 @@ export class DiscussionManager extends EventEmitter {
 
     // 保存到数据库
     this.db.saveConversation(conversation, clientId)
-    
+
     // 保存初始消息
     for (const message of conversation.messages) {
       this.db.saveMessage(message, conversationId)
@@ -94,10 +94,10 @@ export class DiscussionManager extends EventEmitter {
 
       conversation.status = 'completed'
       conversation.updatedAt = new Date()
-      
+
       // 更新数据库状态
       this.db.updateConversationStatus(conversationId, clientId, 'completed')
-      
+
       this.emit('discussionCompleted', {
         clientId,
         conversationId,
@@ -134,7 +134,7 @@ export class DiscussionManager extends EventEmitter {
     })
 
     // 第一阶段：确保初次发言人成功发言
-    const firstSpeaker = discussionOrder.find(p => p.roleId === 'first_speaker')
+    const firstSpeaker = discussionOrder.find((p) => p.roleId === 'first_speaker')
     if (!firstSpeaker) {
       throw new Error('No first speaker available for discussion')
     }
@@ -163,9 +163,7 @@ export class DiscussionManager extends EventEmitter {
     await new Promise((resolve) => setTimeout(resolve, 2000))
 
     // 第二阶段：其他参与者并发发言（除了初次发言人和综合者）
-    const otherParticipants = discussionOrder.filter(p => 
-      p.roleId !== 'first_speaker' && p.roleId !== 'synthesizer'
-    )
+    const otherParticipants = discussionOrder.filter((p) => p.roleId !== 'first_speaker' && p.roleId !== 'synthesizer')
 
     if (otherParticipants.length > 0) {
       console.log('🗣️ Stage 2: Other participants responding concurrently...')
@@ -173,7 +171,7 @@ export class DiscussionManager extends EventEmitter {
     }
 
     // 第三阶段：综合者最后发言
-    const synthesizer = discussionOrder.find(p => p.roleId === 'synthesizer')
+    const synthesizer = discussionOrder.find((p) => p.roleId === 'synthesizer')
     if (synthesizer) {
       console.log('🔄 Stage 3: Synthesizer providing final analysis...')
       await this.processSynthesizerResponse(conversation, synthesizer, conversationId, clientId)
@@ -193,12 +191,12 @@ export class DiscussionManager extends EventEmitter {
         console.log(`🎯 Getting response from ${participant.name}...`)
         const contextualPrompt = this.buildContextualPrompt(conversation, participant, false)
         const response = await this.getParticipantResponse(conversation, participant, contextualPrompt)
-        
+
         return {
           participant,
           response,
           index,
-          success: !response.metadata?.isErrorMessage
+          success: !response.metadata?.isErrorMessage,
         }
       } catch (error) {
         console.error(`❌ Participant ${participant.name} failed to respond:`, error)
@@ -206,7 +204,7 @@ export class DiscussionManager extends EventEmitter {
           participant,
           response: null,
           index,
-          success: false
+          success: false,
         }
       }
     })
@@ -215,8 +213,8 @@ export class DiscussionManager extends EventEmitter {
     const results = await Promise.all(responsePromises)
 
     // 按成功的响应顺序保存和发布消息
-    const successfulResults = results.filter(r => r.success && r.response)
-    
+    const successfulResults = results.filter((r) => r.success && r.response)
+
     for (const result of successfulResults) {
       conversation.messages.push(result.response!)
       conversation.updatedAt = new Date()
@@ -379,10 +377,12 @@ ${originalQuestion}`
     } else if (participant.roleId === 'synthesizer') {
       // 综合者的特殊提示词：需要综合所有前面的观点
       const allResponses = conversation.messages.filter((m: Message) => m.role === 'assistant')
-      const discussionSummary = allResponses.map((msg, index) => {
-        const speakerName = msg.metadata?.participantName || `发言者 ${index + 1}`
-        return `**${speakerName}** 的观点：\n${msg.content}`
-      }).join('\n\n')
+      const discussionSummary = allResponses
+        .map((msg, index) => {
+          const speakerName = msg.metadata?.participantName || `发言者 ${index + 1}`
+          return `**${speakerName}** 的观点：\n${msg.content}`
+        })
+        .join('\n\n')
 
       return `这是一个专题讨论会，你是综合者。请仔细阅读原始问题以及所有参与者的发言。
 
@@ -562,10 +562,10 @@ ${firstAnswer}
     }
 
     conversation.updatedAt = new Date()
-    
+
     // 保存更新到数据库
     this.db.saveConversation(conversation, clientId)
-    
+
     return true
   }
 
