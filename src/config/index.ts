@@ -21,7 +21,7 @@ if (process.env.NODE_ENV !== 'production') {
   }
 } else {
   // 生产环境下，Railway的环境变量已经自动注入到process.env中
-  console.log('Production mode: Using Railway environment variables')
+  console.log('Production mode: Using cloud environment variables')
 }
 
 export interface ProviderConfig {

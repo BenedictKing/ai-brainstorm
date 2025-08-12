@@ -14,18 +14,30 @@ export class DatabaseManager {
 
     if (dbUrl.startsWith('sqlite://')) {
       dbPath = dbUrl.replace('sqlite://', '')
+    } else if (dbUrl.startsWith('postgresql://')) {
+      // Railway使用PostgreSQL，但我们仍使用SQLite作为本地存储
+      // 在生产环境中，我们可以使用内存或临时SQLite数据库
+      dbPath = process.env.NODE_ENV === 'production' ? ':memory:' : './data/brainstorm.db'
+      console.log('⚠️ PostgreSQL detected, using SQLite in memory for Railway deployment')
     } else {
       dbPath = './data/brainstorm.db'
     }
 
-    // 确保数据目录存在
-    const dataDir = path.dirname(dbPath)
-    if (!fs.existsSync(dataDir)) {
-      fs.mkdirSync(dataDir, { recursive: true })
+    // 确保数据目录存在（仅对文件数据库）
+    if (dbPath !== ':memory:' && !dbPath.startsWith(':')) {
+      const dataDir = path.dirname(dbPath)
+      if (!fs.existsSync(dataDir)) {
+        fs.mkdirSync(dataDir, { recursive: true })
+      }
     }
 
     this.db = new Database(dbPath)
     this.initializeTables()
+    
+    // 在生产环境中自动迁移知识库数据
+    if (process.env.NODE_ENV === 'production') {
+      this.migrateKnowledgeFromJsonIfExists()
+    }
   }
 
   private initializeTables(): void {
@@ -434,6 +446,25 @@ export class DatabaseManager {
     } catch (error) {
       console.error('❌ Failed to migrate knowledge from JSON:', error)
       return 0
+    }
+  }
+
+  // 检查并自动迁移knowledge.json
+  private async migrateKnowledgeFromJsonIfExists(): Promise<void> {
+    const jsonPath = './data/knowledge.json'
+    try {
+      const fs = await import('fs/promises')
+      await fs.access(jsonPath)
+      
+      // 检查是否已经有知识库数据
+      const existingCount = this.db.prepare('SELECT COUNT(*) as count FROM knowledge_entries').get() as any
+      if (existingCount.count === 0) {
+        console.log('🔄 Auto-migrating knowledge from JSON...')
+        await this.migrateKnowledgeFromJson(jsonPath)
+      }
+    } catch (error) {
+      // 文件不存在或无法访问，跳过迁移
+      console.log('📝 No existing knowledge.json found, starting fresh')
     }
   }
 }

@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: ai-brainstorm
+    env: node
+    region: oregon
+    plan: starter
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    disk:
+      name: ai-brainstorm-data
+      mountPath: /opt/render/project/src/data
+      sizeGB: 1
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NODE_VERSION
+        value: 20.19.0
+      - key: DATABASE_URL
+        value: sqlite:///opt/render/project/src/data/brainstorm.db
+      - key: PORT
+        fromService:
+          type: web
+          name: ai-brainstorm
+          property: port
