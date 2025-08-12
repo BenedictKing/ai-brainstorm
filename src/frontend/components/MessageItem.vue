@@ -19,9 +19,14 @@
 
   <div v-else class="message" :class="message.role">
     <div class="message-header">
-      <span class="message-author">
-        {{ getAuthorName(message) }}
-      </span>
+      <div class="message-author">
+        <span class="participant-name">{{ getParticipantName(message) }}</span>
+        <template v-if="hasProviderInfo(message)">
+          <span class="by-text">by</span>
+          <span class="provider-tag">{{ getProviderName(message) }}</span>
+          <span class="model-name">{{ getModelName(message) }}</span>
+        </template>
+      </div>
       <span class="message-time">
         {{ formatTime(message.timestamp) }}
       </span>
@@ -67,7 +72,35 @@ const toggleExpanded = () => {
 }
 
 const getAuthorName = (message) => {
-  return message.metadata?.participantName || message.model || 'AI'
+  const participantName = message.metadata?.participantName || 'AI'
+  const provider = message.metadata?.provider || message.model || 'unknown'
+  const modelId = message.metadata?.modelId || 'unknown-model'
+  
+  // 格式：初次发言人 by GEMINI gemini-2.0-flash
+  return `${participantName} by ${provider.toUpperCase()} ${modelId}`
+}
+
+const getParticipantName = (message) => {
+  return message.metadata?.participantName || (message.role === 'user' ? '用户' : 'AI')
+}
+
+const hasProviderInfo = (message) => {
+  return message.metadata && (message.metadata.provider || message.metadata.participantName)
+}
+
+const getProviderName = (message) => {
+  const provider = message.metadata?.provider || message.model || 'unknown'
+  return provider.toUpperCase()
+}
+
+const getModelName = (message) => {
+  return message.metadata?.modelId || 'unknown-model'
+}
+
+const getProviderInfo = (message) => {
+  const provider = message.metadata?.provider || message.model || 'unknown'
+  const modelId = message.metadata?.modelId || 'unknown-model'
+  return `${provider.toUpperCase()} ${modelId}`
 }
 
 const formatTime = (timestamp) => {
@@ -124,6 +157,27 @@ const renderMarkdown = (content) => {
 /* 消息折叠样式 */
 .message-content {
   transition: all 0.3s ease;
+  max-height: 400px;
+  overflow-y: auto;
+  padding-right: 8px;
+}
+
+.message-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.message-content::-webkit-scrollbar-track {
+  background: #f8f6f3;
+  border-radius: 3px;
+}
+
+.message-content::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, #d4a574 0%, #c19552 100%);
+  border-radius: 3px;
+}
+
+.message-content::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(135deg, #c19552 0%, #b8864a 100%);
 }
 
 .message-content.collapsed {

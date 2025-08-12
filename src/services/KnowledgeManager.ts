@@ -1,9 +1,8 @@
 import { KnowledgeEntry, Conversation, Message } from '../types/index.js'
 import { AIProviderFactory } from '../models/index.js'
+import { DatabaseManager } from './DatabaseManager.js'
 import { ContextCompressor } from './ContextCompressor.js'
 import { v4 as uuidv4 } from 'uuid'
-import * as fs from 'fs/promises'
-import * as path from 'path'
 
 export interface KnowledgeExtractionConfig {
   extractionModel?: string
@@ -14,12 +13,11 @@ export interface KnowledgeExtractionConfig {
 }
 
 export class KnowledgeManager {
-  private knowledgeBase: Map<string, KnowledgeEntry[]> = new Map()
+  private db: DatabaseManager
   private config: Required<KnowledgeExtractionConfig>
-  private dataPath: string
 
-  constructor(dataPath = './data/knowledge.json', config: KnowledgeExtractionConfig = {}) {
-    this.dataPath = dataPath
+  constructor(db?: DatabaseManager, config: KnowledgeExtractionConfig = {}) {
+    this.db = db || new DatabaseManager()
     this.config = {
       extractionModel: 'claude',
       minContentLength: 50,
@@ -28,7 +26,6 @@ export class KnowledgeManager {
       enableClustering: true,
       ...config,
     }
-    this.loadKnowledgeBase()
   }
 
   async extractKnowledgeFromConversation(conversation: Conversation): Promise<KnowledgeEntry[]> {
@@ -163,22 +160,24 @@ ${content}
   }
 
   async addKnowledgeEntry(entry: KnowledgeEntry): Promise<void> {
-    const existingEntries = this.knowledgeBase.get(entry.topic) || []
+    const existingEntries = this.db.getKnowledgeEntriesByTopic(entry.topic)
 
     const isDuplicate = existingEntries.some(
       (existing) => this.calculateSimilarity(existing.content, entry.content) > this.config.similarityThreshold
     )
 
     if (!isDuplicate) {
-      existingEntries.push(entry)
-
-      if (existingEntries.length > this.config.maxEntriesPerTopic) {
-        existingEntries.sort((a, b) => (b.relevanceScore || 0) - (a.relevanceScore || 0))
-        existingEntries.splice(this.config.maxEntriesPerTopic)
+      // 如果条目数量超过限制，删除相关度最低的
+      if (existingEntries.length >= this.config.maxEntriesPerTopic) {
+        const sortedEntries = existingEntries.sort((a, b) => (a.relevanceScore || 0) - (b.relevanceScore || 0))
+        const entriesToRemove = sortedEntries.slice(0, existingEntries.length - this.config.maxEntriesPerTopic + 1)
+        
+        for (const entryToRemove of entriesToRemove) {
+          this.db.deleteKnowledgeEntry(entryToRemove.id)
+        }
       }
 
-      this.knowledgeBase.set(entry.topic, existingEntries)
-      await this.saveKnowledgeBase()
+      this.db.saveKnowledgeEntry(entry)
     }
   }
 
@@ -193,34 +192,7 @@ ${content}
   }
 
   async searchKnowledge(query: string, maxResults = 10): Promise<KnowledgeEntry[]> {
-    const allEntries: KnowledgeEntry[] = []
-
-    for (const entries of this.knowledgeBase.values()) {
-      allEntries.push(...entries)
-    }
-
-    const queryWords = new Set(query.toLowerCase().split(/\s+/))
-
-    const scoredEntries = allEntries.map((entry) => {
-      const contentWords = new Set<string>(entry.content.toLowerCase().split(/\s+/))
-      const topicWords = new Set<string>(entry.topic.toLowerCase().split(/\s+/))
-      const tagWords = new Set<string>(entry.tags.join(' ').toLowerCase().split(/\s+/))
-
-      const contentScore = this.calculateSetIntersection(queryWords, contentWords) * 1.0
-      const topicScore = this.calculateSetIntersection(queryWords, topicWords) * 1.5
-      const tagScore = this.calculateSetIntersection(queryWords, tagWords) * 1.2
-      const relevanceScore = (entry.relevanceScore || 0) * 0.5
-
-      const totalScore = contentScore + topicScore + tagScore + relevanceScore
-
-      return { entry, score: totalScore }
-    })
-
-    return scoredEntries
-      .filter((item) => item.score > 0)
-      .sort((a, b) => b.score - a.score)
-      .slice(0, maxResults)
-      .map((item) => item.entry)
+    return this.db.searchKnowledgeEntries(query, maxResults)
   }
 
   private calculateSetIntersection(set1: Set<string>, set2: Set<string>): number {
@@ -229,7 +201,7 @@ ${content}
   }
 
   async generateKnowledgeSummary(topic: string): Promise<string> {
-    const entries = this.knowledgeBase.get(topic)
+    const entries = this.db.getKnowledgeEntriesByTopic(topic)
     if (!entries || entries.length === 0) {
       return `没有找到关于 "${topic}" 的知识条目。`
     }
@@ -276,7 +248,7 @@ ${entriesText}
   }
 
   getTopicList(): string[] {
-    return Array.from(this.knowledgeBase.keys()).sort()
+    return this.db.getKnowledgeTopics()
   }
 
   getKnowledgeStats(): {
@@ -285,44 +257,12 @@ ${entriesText}
     averageEntriesPerTopic: number
     topTopics: { topic: string; count: number }[]
   } {
-    const topics = Array.from(this.knowledgeBase.entries())
-    const totalEntries = topics.reduce((sum, [, entries]) => sum + entries.length, 0)
-
-    const topTopics = topics
-      .map(([topic, entries]) => ({ topic, count: entries.length }))
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 10)
-
-    return {
-      totalTopics: topics.length,
-      totalEntries,
-      averageEntriesPerTopic: totalEntries / topics.length || 0,
-      topTopics,
-    }
+    return this.db.getKnowledgeStats()
   }
 
-  private async saveKnowledgeBase(): Promise<void> {
-    try {
-      const dataDir = path.dirname(this.dataPath)
-      await fs.mkdir(dataDir, { recursive: true })
-
-      const data = Object.fromEntries(this.knowledgeBase.entries())
-      await fs.writeFile(this.dataPath, JSON.stringify(data, null, 2))
-    } catch (error) {
-      console.error('Failed to save knowledge base:', error)
-    }
-  }
-
-  private async loadKnowledgeBase(): Promise<void> {
-    try {
-      const data = await fs.readFile(this.dataPath, 'utf-8')
-      const parsed = JSON.parse(data)
-
-      this.knowledgeBase = new Map(Object.entries(parsed))
-    } catch (error) {
-      console.log('No existing knowledge base found, starting fresh')
-      this.knowledgeBase = new Map()
-    }
+  // 从JSON文件迁移知识库
+  async migrateFromJsonFile(jsonPath: string = './data/knowledge.json'): Promise<number> {
+    return await this.db.migrateKnowledgeFromJson(jsonPath)
   }
 
   async exportKnowledge(format: 'json' | 'markdown' = 'json'): Promise<string> {
@@ -330,12 +270,31 @@ ${entriesText}
       return this.exportToMarkdown()
     }
 
-    const data = Object.fromEntries(this.knowledgeBase.entries())
-    return JSON.stringify(data, null, 2)
+    const allEntries = this.db.getAllKnowledgeEntries()
+    const groupedByTopic: { [topic: string]: KnowledgeEntry[] } = {}
+    
+    for (const entry of allEntries) {
+      if (!groupedByTopic[entry.topic]) {
+        groupedByTopic[entry.topic] = []
+      }
+      groupedByTopic[entry.topic].push(entry)
+    }
+
+    return JSON.stringify(groupedByTopic, null, 2)
   }
 
   private exportToMarkdown(): string {
-    const topics = Array.from(this.knowledgeBase.entries()).sort(([a], [b]) => a.localeCompare(b))
+    const allEntries = this.db.getAllKnowledgeEntries()
+    const groupedByTopic: { [topic: string]: KnowledgeEntry[] } = {}
+    
+    for (const entry of allEntries) {
+      if (!groupedByTopic[entry.topic]) {
+        groupedByTopic[entry.topic] = []
+      }
+      groupedByTopic[entry.topic].push(entry)
+    }
+
+    const topics = Object.entries(groupedByTopic).sort(([a], [b]) => a.localeCompare(b))
 
     let markdown = '# AI讨论知识库\n\n'
     markdown += `生成时间: ${new Date().toLocaleString()}\n\n`

@@ -366,14 +366,26 @@ export class DiscussionManager extends EventEmitter {
     participant: AIParticipant,
     isFirstSpeaker: boolean
   ): string {
-    const originalQuestion = conversation.messages.find((m: Message) => m.role === 'user')?.content || ''
+    const originalMessage = conversation.messages.find((m: Message) => m.role === 'user')?.content || ''
+    
+    // 解析原始消息，提取问题和背景信息
+    const { question, context } = this.parseOriginalMessage(originalMessage)
 
     if (isFirstSpeaker) {
       // 首位发言者的提示词：作为首个回答者，请全面回答问题
-      return `你被指定为本次讨论的首位发言者。请针对以下问题提供一个全面、深入、结构化的基础回答。你的回答将作为后续讨论的起点。
+      let prompt = `你被指定为本次讨论的首位发言者。请针对以下问题提供一个全面、深入、结构化的基础回答。你的回答将作为后续讨论的起点。
 
 问题：
-${originalQuestion}`
+${question}`
+
+      if (context) {
+        prompt += `
+
+背景信息：
+${context}`
+      }
+
+      return prompt
     } else if (participant.roleId === 'synthesizer') {
       // 综合者的特殊提示词：需要综合所有前面的观点
       const allResponses = conversation.messages.filter((m: Message) => m.role === 'assistant')
@@ -384,34 +396,84 @@ ${originalQuestion}`
         })
         .join('\n\n')
 
-      return `这是一个专题讨论会，你是综合者。请仔细阅读原始问题以及所有参与者的发言。
+      let prompt = `这是一个专题讨论会，你是综合者。请仔细阅读原始问题以及所有参与者的发言。
 
 你的任务是作为讨论的综合者，整合各方观点，寻找共同点，调和分歧，并提出平衡的结论或解决方案。
 
 原始问题：
-${originalQuestion}
+${question}`
+
+      if (context) {
+        prompt += `
+
+背景信息：
+${context}`
+      }
+
+      prompt += `
 
 讨论内容：
 ${discussionSummary}
 
 现在，请作为综合者，整合以上观点并给出你的综合分析：`
+
+      return prompt
     } else {
       // 其他参与者的提示词：基于问题和首位发言者的回答进行思辨
       const firstResponse = conversation.messages.find((m: Message) => m.role === 'assistant')
       const firstSpeakerName = firstResponse?.metadata?.participantName || '首位发言者'
       const firstAnswer = firstResponse?.content || '（首位发言者未能提供回答）'
 
-      return `这是一个专题讨论会。请仔细阅读原始问题以及由 ${firstSpeakerName} 提供的基础回答。
+      let prompt = `这是一个专题讨论会。请仔细阅读原始问题以及由 ${firstSpeakerName} 提供的基础回答。
 
 你的任务是基于上述内容，从你的专业角度提出独特的思辨、反馈、质疑、补充或完全不同的观点。请确保你的发言具有深度和洞察力。
 
 原始问题：
-${originalQuestion}
+${question}`
+
+      if (context) {
+        prompt += `
+
+背景信息：
+${context}`
+      }
+
+      prompt += `
 
 ${firstSpeakerName} 的回答：
 ${firstAnswer}
 
 现在，请开始你的思辨和反馈：`
+
+      return prompt
+    }
+  }
+
+  private parseOriginalMessage(originalMessage: string): { question: string; context?: string } {
+    // formatDiscussionPrompt 生成的格式是：
+    // 讨论话题：{question}
+    // 
+    // 背景信息：{context}（可选）
+    // 
+    // 请各位AI助手从自己的角色出发，对这个话题进行深入讨论。
+    
+    const lines = originalMessage.split('\n')
+    let question = ''
+    let context = ''
+    
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim()
+      
+      if (line.startsWith('讨论话题：')) {
+        question = line.substring('讨论话题：'.length).trim()
+      } else if (line.startsWith('背景信息：')) {
+        context = line.substring('背景信息：'.length).trim()
+      }
+    }
+    
+    return {
+      question: question || originalMessage,
+      context: context || undefined
     }
   }
 
@@ -473,6 +535,8 @@ ${firstAnswer}
           participantId: participant.id,
           participantName: participant.name,
           participantRole: participant.role,
+          provider: participant.model.provider,
+          modelId: participant.model.id,
         },
       }
     } catch (error) {
@@ -490,6 +554,8 @@ ${firstAnswer}
           participantId: participant.id,
           participantName: participant.name,
           participantRole: participant.role,
+          provider: participant.model.provider,
+          modelId: participant.model.id,
           error: errorMessage,
           isErrorMessage: true,
         },

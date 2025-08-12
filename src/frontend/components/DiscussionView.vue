@@ -119,7 +119,7 @@ const pollDiscussionStatus = async () => {
           }
           // 只有还没有显示过讨论顺序时才添加
           if (!messages.value.some(m => m.type === 'discussion-order')) {
-            addDiscussionOrder(conversation.participants.map((p) => p.name))
+            addDiscussionOrder(getOrderedParticipantNames(conversation.participants))
           }
         }
 
@@ -182,6 +182,38 @@ const setupPolling = () => {
 }
 
 // 方法
+const getOrderedParticipantNames = (participants) => {
+  // 定义正确的讨论顺序
+  const discussionOrder = [
+    'first_speaker',    // 初次发言人
+    'critic',          // 批判性思考者
+    'supporter',       // 支持者
+    'devil_advocate',  // 魔鬼代言人
+    'innovator',       // 创新者
+    'expert',          // 领域专家
+    'synthesizer'      // 综合者
+  ]
+  
+  const orderedParticipants = []
+  
+  // 按照预定义顺序添加参与者
+  discussionOrder.forEach(roleId => {
+    const participant = participants.find(p => p.roleId === roleId)
+    if (participant) {
+      orderedParticipants.push(participant.name)
+    }
+  })
+  
+  // 添加任何未在预定义顺序中的参与者（自定义角色等）
+  participants.forEach(p => {
+    if (!discussionOrder.includes(p.roleId) && !orderedParticipants.includes(p.name)) {
+      orderedParticipants.push(p.name)
+    }
+  })
+  
+  return orderedParticipants
+}
+
 const addMessage = (message) => {
   messages.value.push(message)
   scrollToBottom()
@@ -359,32 +391,12 @@ onUnmounted(() => {
 }
 
 .messages-container {
-  max-height: 70vh;
-  overflow-y: auto;
   padding: 24px;
   background: linear-gradient(135deg, #ffffff 0%, #fefefe 100%);
   border: 1px solid #f0ebe5;
   border-radius: 16px;
   box-shadow: 0 4px 16px rgba(184, 167, 143, 0.08);
   backdrop-filter: blur(10px);
-}
-
-.messages-container::-webkit-scrollbar {
-  width: 8px;
-}
-
-.messages-container::-webkit-scrollbar-track {
-  background: #f8f6f3;
-  border-radius: 4px;
-}
-
-.messages-container::-webkit-scrollbar-thumb {
-  background: linear-gradient(135deg, #d4a574 0%, #c19552 100%);
-  border-radius: 4px;
-}
-
-.messages-container::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(135deg, #c19552 0%, #b8864a 100%);
 }
 
 .discussion-not-found {
@@ -412,5 +424,40 @@ onUnmounted(() => {
   display: flex;
   gap: 12px;
   justify-content: center;
+}
+
+.discussion-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  margin-top: 20px;
+  text-align: center;
+}
+
+.loading-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid #f0ebe5;
+  border-top: 3px solid #d4a574;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 12px;
+}
+
+.loading-text {
+  color: #8b5a3c;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+@keyframes spin {
+  0% { 
+    transform: rotate(0deg); 
+  }
+  100% { 
+    transform: rotate(360deg); 
+  }
 }
 </style>
